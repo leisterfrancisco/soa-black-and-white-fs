@@ -1,11 +1,16 @@
-'''
-Monta el BWFS en el punto de montaje especificado utilizando la configuración dada.
+/**
+ * Monta el BWFS en el punto de montaje especificado utilizando la configuración dada.
 Sintaxis: mount.bwfs -c config.ini mnt
 Llama al daemon con los parametros adecuados
 
 Falta que el codigo solo permita especificar el archivo de configuracion config.init
 No implementa logica de fingerprint automatico como ejemplo detectar metadata existente
-'''
+ 
+ * 
+ * 
+ */
+ 
+ 
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,5 +1,4 @@
-'''
-En forma general se crea un FS con inodos y bloques de datos
+/** En forma general se crea un FS con inodos y bloques de datos
 Lee la configuracion desde config.ini
 
 No implementa de forma distributiva
@@ -7,8 +6,11 @@ Interpreta 1000x1000 como bytes, no como píxeles.
 
 
 Idea de esqueleto inicial pero falta cumplir especificaciones
-'''
-
+ * 
+ * 
+*/
+ 
+ 
 
 #include <stdio.h>
 #include <stdlib.h>

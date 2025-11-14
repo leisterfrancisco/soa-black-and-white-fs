@@ -1,5 +1,5 @@
-'''
-Este codigo es una base que implementa un sistema de archivos llamado BWFS
+/**
+ * Este codigo es una base que implementa un sistema de archivos llamado BWFS
 usando la biblioteca FUSE, al inicializar carga el metadata guardada en el
 mkfs.bwfs (ruta de almacenamiento, tamaño máximo de bloque e inodos) y 
 normaliza la ruta; con getattr devuelve los atributos de archivos y d
@@ -16,8 +16,8 @@ creo que el gettatr deberia devolver los permisos correctos y funciona
 
 Estoy teniendo problemas con create en crear un archivo, open me parece que
 funciona y readdir me parece que funciona
-'''
-
+ * 
+ */
 
 #define FUSE_USE_VERSION 31
 #include <fuse3/fuse.h>
