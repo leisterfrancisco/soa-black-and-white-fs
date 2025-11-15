@@ -4,7 +4,19 @@ Black and White File System - A FUSE-based filesystem implementation.
 
 ## Project Setup
 
-This project uses libfuse3 from the `external/libfuse/` directory for headers.
+### Cloning the Repository
+
+If you're cloning this repository for the first time, you need to initialize and update git submodules:
+
+```bash
+# Clone with submodules
+git clone --recurse-submodules <repository-url>
+
+# Or if you've already cloned without submodules
+git submodule update --init --recursive
+```
+
+This project uses libfuse3 from the `external/libfuse/` directory for headers, which is included as a git submodule.
 
 ### Header Structure
 

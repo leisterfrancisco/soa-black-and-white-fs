@@ -2,6 +2,20 @@
 
 The `bwfs` executable requires the libfuse library to be installed on your system.
 
+## Git Submodules
+
+This project uses git submodules to include the libfuse headers. Before building, ensure submodules are initialized:
+
+```bash
+# If cloning for the first time
+git clone --recurse-submodules <repository-url>
+
+# Or if you've already cloned the repository
+git submodule update --init --recursive
+```
+
+This will populate the `external/libfuse/` directory with the necessary headers.
+
 ## macOS Installation
 
 ### Option 1: Using Homebrew (Recommended)
