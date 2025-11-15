@@ -1,55 +1,49 @@
-# Prerequisites
-*.d
+# CMake build directories
+build/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+_deps/
 
-# Object files
+# compile_commands.json - uncomment if you don't want it in git
+# (Some teams prefer to commit it for IDE support)
+# compile_commands.json
+
+# Build artifacts
 *.o
-*.ko
-*.obj
-*.elf
-
-# Linker output
-*.ilk
-*.map
-*.exp
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Libraries
-*.lib
 *.a
-*.la
-*.lo
-
-# Shared objects (inc. Windows DLLs)
-*.dll
 *.so
-*.so.*
 *.dylib
+*.dll
 
 # Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
+bwfs
+mkfs.bwfs
+mount.bwfs
 
-# Debug files
-*.dSYM/
-*.su
-*.idb
-*.pdb
+# Runtime files
+bwfs_storage/
+mnt/
+bwfs_metadata.bin
 
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
-# debug information files
-*.dwo
+# OS files
+.DS_Store
+Thumbs.db
+
+.cache
+
+
+external
