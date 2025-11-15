@@ -18,12 +18,10 @@ mount.bwfs: src/mount_bwfs.c
 # Crear directorio mnt si no existe y ajustar permisos
 mnt:
 	mkdir -p mnt
-	chown elias:elias mnt
-	chmod 755 mnt
+	chmod 777 mnt
 storage:
 	mkdir -p bwfs_storage
-	chown elias:elias bwfs_storage
-	chmod 755 bwfs_storage
+	chmod 777 bwfs_storage
 clean:
 	rm -f bwfs mkfs.bwfs mount.bwfs *.o
 	rm -rf bwfs_storage
