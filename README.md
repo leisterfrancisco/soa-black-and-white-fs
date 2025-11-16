@@ -59,17 +59,29 @@ This project uses CMake to build the binaries.
 
 #### Standard Build (Recommended)
 
-```bash
 # Configure and build
+
+```bash
 cmake -B build
 cmake --build build
 
+```
+
+Or simpler:
+
+```bash
+cmake -B build -S . && cmake --build build
+```
+
 # The executables will be in the build/ directory
+
 # Note: bwfs will only be built if libfuse is installed
+
 ./build/mkfs.bwfs
 ./build/mount.bwfs
-./build/bwfs  # Only available if libfuse is installed
-```
+./build/bwfs # Only available if libfuse is installed
+
+````
 
 **Important**: If you see a warning about libfuse not being found, `mkfs.bwfs` and `mount.bwfs` will still build successfully. Only `bwfs` requires the libfuse library. Install libfuse to build the complete project.
 
@@ -78,7 +90,7 @@ cmake --build build
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build
-```
+````
 
 #### Release Build
 
