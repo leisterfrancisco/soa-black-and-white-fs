@@ -54,120 +54,136 @@
 #include <limits.h>
 #include <errno.h>
 
-// Archivo del metadata donde se busca almacenar el fingerprint y parámetros
+// Archivo del metadata donde se almacena el fingerprint y parámetros
 #define META_FILE "bwfs_metadata.bin"
 // Número máximo de archivos de datos
 #define MAX_FILES 1024
-// Máximo tamaño de bloque: 1000px x 1000px = 1,000,000 bytes
+// Máximo tamaño de bloque
 #define MAX_BLOCK_BYTES 1000000
-// Fingerprint del FS: "BWFS" en ASCII
-#define BWFS_MAGIC 0x42574653u 
+// Fingerprint BWFS = "BWFS"
+#define BWFS_MAGIC 0x42574653u
 
-// Definición de las estructuras  
+// --------- ESTRUCTURAS ---------
 
-// Inodo, la estructura de indexación de bloques
 typedef struct {
-    int used;      // flag si el inodo esta en uso
-    char name[256]; // Nombre del archivo
-    size_t size; // Tamaño del archivo
-    int mode; // Permisos y tipo de archivo
+    int used;          // Flag: 0 libre, 1 usado
+    char name[256];    // Nombre del archivo
+    size_t size;       // Tamaño
+    int mode;          // Permisos / tipo
 } inode_t;
 
-// Metadata del FS, fingerprint, ruta de storage, tamaño máximo de bloque e inodos
 typedef struct {
-    unsigned int magic;      // Fingerprint BWFS_MAGIC
-    char storage_path[512]; // Ruta absoluta al storage
-    size_t max_block_bytes;  // Límite de tamaño de bloque
-    inode_t inodes[MAX_FILES]; // Tabla de inodos
-} bwfs_t; 
+    unsigned int magic;              // Identificador
+    char storage_path[512];          // Ruta absoluta del storage
+    size_t max_block_bytes;          // Tamaño máximo por archivo
+    inode_t inodes[MAX_FILES];       // Tabla de inodos
+} bwfs_t;
 
 
-// Lectura de la configuración desde el config.ini
+// --------- LECTURA DE CONFIG ---------
+
 static int read_config(const char *filename, char *storage_path, size_t *max_block_bytes) {
     FILE *f = fopen(filename, "r");
     if (!f) {
-        perror("config.ini");  // Muestra un error si no se puede abrir
+        perror("config.ini");
         return -1;
     }
+
     char line[512];
     while (fgets(line, sizeof(line), f)) {
-        // Busca lo que son parámetros en la sección, más general
         if (sscanf(line, "storage_path = %511s", storage_path) == 1) continue;
         if (sscanf(line, "max_block_bytes = %zu", max_block_bytes) == 1) continue;
     }
+
     fclose(f);
     return 0;
 }
 
-// Realiza una normalización de a ruta absoluta
+
+// --------- NORMALIZAR RUTA ---------
+
 static void make_absolute_path(char *dst, size_t dstsz, const char *storage_path) {
     if (storage_path[0] == '/') {
-        // En caso que si ya es absoluta, pues copia de forma directa
-        strncpy(dst, storage_path, dstsz-1);
-        dst[dstsz-1] = '\0';
+        strncpy(dst, storage_path, dstsz - 1);
+        dst[dstsz - 1] = '\0';
         return;
     }
+
     char cwd[PATH_MAX];
     if (!getcwd(cwd, sizeof(cwd))) {
-        // En caso que falle getcwd, pues copia tal cual
-        strncpy(dst, storage_path, dstsz-1);
-        dst[dstsz-1] = '\0';
+        strncpy(dst, storage_path, dstsz - 1);
+        dst[dstsz - 1] = '\0';
         return;
     }
-    // Contruye la ruta absoluta, de cmd mas el storage_path
+
     snprintf(dst, dstsz, "%s/%s", cwd, storage_path);
-    // Compactar dobles barras "//" en la ruta
+
+    // Quitar dobles barras
     for (char *p = dst; *p; ++p) {
         if (p[0] == '/' && p[1] == '/') {
-            memmove(p, p+1, strlen(p));
+            memmove(p, p + 1, strlen(p));
         }
     }
 }
 
-// Programa principal de este mkfs_bwfs
+
+// --------- PROGRAMA PRINCIPAL ---------
+
 int main(int argc, char **argv) {
-    // S realiza la validacion de sintaxis, mkfs.bwfs -c config.ini
+
     if (argc != 3 || strcmp(argv[1], "-c") != 0) {
         printf("Uso: mkfs.bwfs -c config.ini\n");
         return 1;
     }
-    // Se colocan valores por defecto
+
+    // Valores por defecto
     char storage_path_cfg[512] = "bwfs_storage";
     size_t max_block_bytes_cfg = MAX_BLOCK_BYTES;
 
-    // Ahora realiza una lectura de la configuracion desde el config.ini
+    // Leer config.ini
     if (read_config(argv[2], storage_path_cfg, &max_block_bytes_cfg) != 0) {
         fprintf(stderr, "Advertencia: Error leyendo config.ini, usando valores por defecto.\n");
     }
 
-    // Ahora realiza un enforce límite de los bloques, máximo de 1 000 000 bytes
+    // Validar límite
     if (max_block_bytes_cfg > MAX_BLOCK_BYTES) {
-        fprintf(stderr, "max_block_bytes (%zu) > %d, ajustando.\n",
-                max_block_bytes_cfg, MAX_BLOCK_BYTES);
+        fprintf(stderr, "max_block_bytes (%zu) excede límite, ajustando.\n", max_block_bytes_cfg);
         max_block_bytes_cfg = MAX_BLOCK_BYTES;
     }
 
-    // Inicializa la metadata
+    // Crear metadata
     bwfs_t meta;
     memset(&meta, 0, sizeof(meta));
-    meta.magic = BWFS_MAGIC;   // El fingerprint
-    meta.max_block_bytes = max_block_bytes_cfg; // Tamaño máximo de bloque
 
-    // Convierte el storage_path a absoluto y copia a metadata
+    meta.magic = BWFS_MAGIC;
+    meta.max_block_bytes = max_block_bytes_cfg;
+
     make_absolute_path(meta.storage_path, sizeof(meta.storage_path), storage_path_cfg);
 
-    // Crea el directorio de almacenamiento en caso que no exista
+    // Inicializar explícitamente cada inodo
+    for (int i = 0; i < MAX_FILES; ++i) {
+        meta.inodes[i].used = 0;
+        meta.inodes[i].name[0] = '\0';
+        meta.inodes[i].size = 0;
+        meta.inodes[i].mode = 0;
+    }
+
+    // Crear directorio de storage
     if (mkdir(meta.storage_path, 0755) != 0 && errno != EEXIST) {
         perror("mkfs: mkdir storage_path");
         return 1;
     }
 
-    // Ahora almacena el fingerprint en bwf_metadata.bin
+    // ELIMINAR metadata previa
+    unlink(META_FILE);
+
+    // Guardar metadata limpia
     FILE *fm = fopen(META_FILE, "wb");
     if (!fm) {
         perror("mkfs: metadata fopen");
         return 1;
     }
+
     if (fwrite(&meta, sizeof(meta), 1, fm) != 1) {
         perror("mkfs: metadata fwrite");
         fclose(fm);
@@ -175,7 +191,7 @@ int main(int argc, char **argv) {
     }
     fclose(fm);
 
-    // Se crea el backing de files que estan vacios distribuidos
+    // Crear archivos backend
     char path[PATH_MAX];
     for (int i = 0; i < MAX_FILES; ++i) {
         snprintf(path, sizeof(path), "%s/file_%04d.dat", meta.storage_path, i);
@@ -186,8 +202,9 @@ int main(int argc, char **argv) {
         }
         fclose(f);
     }
-    // Mensaje final que fue creado el FS
+
     printf("mkfs.bwfs: FS creado en '%s' con %d archivos de datos.\n",
            meta.storage_path, MAX_FILES);
+
     return 0;
 }
