@@ -121,6 +121,16 @@ set(MOUNT_BWFS_SOURCES
     src/mount_bwfs.c
 )
 
+set(SERVER_SOURCES
+    src/network/server.c
+    src/network/protocol.c
+)
+
+set(CLIENT_SOURCES
+    src/network/client.c
+    src/network/protocol.c
+)
+
 # ============================================================================
 # Executables
 # ============================================================================
@@ -132,6 +142,18 @@ target_include_directories(mkfs.bwfs PRIVATE ${LIBFUSE_INCLUDE_DIR})
 # mount.bwfs - mount wrapper (doesn't need libfuse)
 add_executable(mount.bwfs ${MOUNT_BWFS_SOURCES})
 target_include_directories(mount.bwfs PRIVATE ${LIBFUSE_INCLUDE_DIR})
+
+# Network server (Berkeley Sockets)
+add_executable(bwfs-server ${SERVER_SOURCES})
+target_include_directories(bwfs-server PRIVATE 
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+# Network client (Berkeley Sockets)
+add_executable(bwfs-client ${CLIENT_SOURCES})
+target_include_directories(bwfs-client PRIVATE 
+    ${CMAKE_SOURCE_DIR}/src
+)
 
 # Main FUSE daemon (requires libfuse library)
 if(FUSE3_FOUND)
@@ -213,7 +235,7 @@ endif()
 # ============================================================================
 
 # Only install targets that were created
-set(INSTALL_TARGETS mkfs.bwfs mount.bwfs)
+set(INSTALL_TARGETS mkfs.bwfs mount.bwfs bwfs-server bwfs-client)
 if(FUSE3_FOUND)
     list(APPEND INSTALL_TARGETS bwfs)
 endif()
