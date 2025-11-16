@@ -22,12 +22,14 @@ int protocol_send_message( int sockfd, const message_t *msg ) {
 
   // Send header
   ssize_t sent = send( sockfd, &header, sizeof( header ), 0 );
+
   if ( sent != sizeof( header ) ) {
     return -1;
   }
 
   // Send payload if present
   uint32_t payload_len = ntohl( header.length );
+
   if ( payload_len > 0 && payload_len <= MAX_MESSAGE_SIZE ) {
     sent = send( sockfd, msg->payload, payload_len, 0 );
     if ( sent != (ssize_t)payload_len ) {
@@ -50,6 +52,7 @@ int protocol_receive_message( int sockfd, message_t *msg ) {
   // Receive header
   ssize_t received =
       recv( sockfd, &msg->header, sizeof( msg->header ), MSG_WAITALL );
+
   if ( received != sizeof( msg->header ) ) {
     if ( received == 0 ) {
       // Connection closed
@@ -58,12 +61,10 @@ int protocol_receive_message( int sockfd, message_t *msg ) {
     return -1;
   }
 
-  // Convert header fields from network byte order
   msg->header.magic = ntohs( msg->header.magic );
   msg->header.length = ntohl( msg->header.length );
   msg->header.sequence = ntohl( msg->header.sequence );
 
-  // Validate magic number
   if ( msg->header.magic != PROTOCOL_MAGIC ) {
     return -1;
   }
@@ -107,7 +108,6 @@ int protocol_create_message( message_t     *msg,
   msg->header.length = (uint32_t)payload_len;
   msg->header.sequence = sequence;
 
-  // Copy payload if present
   if ( payload && payload_len > 0 ) {
     memcpy( msg->payload, payload, payload_len );
   }
@@ -129,15 +129,20 @@ void protocol_print_message( const message_t *msg ) {
   printf( "  Type: %u\n", msg->header.type );
   printf( "  Length: %u\n", msg->header.length );
   printf( "  Sequence: %u\n", msg->header.sequence );
+
   if ( msg->header.length > 0 ) {
     printf( "  Payload: " );
+
     size_t len = msg->header.length < 64 ? msg->header.length : 64;
+
     for ( size_t i = 0; i < len; i++ ) {
       printf( "%02X ", msg->payload[i] );
     }
+
     if ( msg->header.length > 64 ) {
       printf( "..." );
     }
+
     printf( "\n" );
   }
 }

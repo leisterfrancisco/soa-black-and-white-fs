@@ -120,18 +120,20 @@ int main( int argc, char *argv[] ) {
   }
 
   printf( "Sending message:\n" );
+
   protocol_print_message( &msg );
 
   if ( protocol_send_message( sockfd, &msg ) < 0 ) {
     perror( "Failed to send message" );
     client_close( sockfd );
+
     return 1;
   }
 
-  // Receive response
   if ( protocol_receive_message( sockfd, &response ) < 0 ) {
     perror( "Failed to receive response" );
     client_close( sockfd );
+
     return 1;
   }
 
