@@ -456,11 +456,11 @@ static int bwfs_open( const char *path, struct fuse_file_info *fi ) {
 }
 
 /* read: signature correcta (ssize_t) */
-static ssize_t bwfs_read( const char            *path,
-                          char                  *buf,
-                          size_t                 size,
-                          off_t                  offset,
-                          struct fuse_file_info *fi ) {
+static int bwfs_read( const char            *path,
+                      char                  *buf,
+                      size_t                 size,
+                      off_t                  offset,
+                      struct fuse_file_info *fi ) {
   (void)fi;
   int idx = find_inode_by_name( path );
   if ( idx < 0 )
@@ -501,11 +501,11 @@ static ssize_t bwfs_read( const char            *path,
 }
 
 /* write: signature correcta (ssize_t) */
-static ssize_t bwfs_write( const char            *path,
-                           const char            *buf,
-                           size_t                 size,
-                           off_t                  offset,
-                           struct fuse_file_info *fi ) {
+static int bwfs_write( const char            *path,
+                       const char            *buf,
+                       size_t                 size,
+                       off_t                  offset,
+                       struct fuse_file_info *fi ) {
   (void)fi;
   int idx = find_inode_by_name( path );
   if ( idx < 0 )
