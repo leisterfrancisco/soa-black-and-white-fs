@@ -32,7 +32,7 @@ option(BUILD_LIBFUSE "Build libfuse from source in external directory" OFF)
 
 # Use local libfuse headers from external directory
 set(LIBFUSE_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/external/libfuse/include")
-set(LIBFUSE_HEADERS_DIR "${LIBFUSE_INCLUDE_DIR}/fuse3")
+set(LIBFUSE_HEADERS_DIR "${LIBFUSE_INCLUDE_DIR}")
 
 # Verify headers exist
 if(NOT EXISTS "${LIBFUSE_HEADERS_DIR}/fuse.h")

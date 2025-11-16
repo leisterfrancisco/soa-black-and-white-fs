@@ -28,7 +28,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <fuse3/fuse.h>
+#include <fuse.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
