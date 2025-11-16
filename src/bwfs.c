@@ -43,7 +43,10 @@
 // Parametros de limite y nombres
 #define MAX_FILES 1024  // Número máximo de inodos y backing files
 #define MAX_NAME_LEN 255 // Longitud máxima de nombre de archivo
-#define META_FILENAME "/home/elias/DesktopWSL/soa-black-and-white-fs/bwfs_metadata.bin"      // Ruta importante modificar donde se encuentre el archivo bwfs_metadata.bin!!
+#ifndef META_FILENAME
+// Default fallback if not defined at compile time
+#define META_FILENAME "bwfs_metadata.bin"
+#endif
 #define BWFS_MAGIC 0x42574653u // "BWFS" fingerprint 
 
 // Estructuras de DISCO(persistencia) y MEMORIA(runtime)

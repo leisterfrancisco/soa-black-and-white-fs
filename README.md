@@ -18,6 +18,19 @@ git submodule update --init --recursive
 
 This project uses libfuse3 from the `external/libfuse/` directory for headers, which is included as a git submodule.
 
+### Configuration Setup
+
+Before building, you need to set up the build-time configuration file:
+
+```bash
+# Copy the example environment file to create your .env file
+cp .env.example .env
+```
+
+The `.env` file contains build-time configuration variables (such as `META_FILENAME`, `MAX_FILES`, etc.) that are used during compilation. You can edit `.env` to customize these values if needed.
+
+**Note**: Runtime configuration (like `storage_path`, `max_block_bytes`, `mount_point`) is handled by `config.ini`, not `.env`.
+
 ### Header Structure
 
 The project is configured to use local libfuse headers:
@@ -129,14 +142,18 @@ make storage  # Create storage directory
 
 ## Project Structure
 
-```
+```text
 .
 ├── CMakeLists.txt          # CMake build configuration
-├── Makefile                # Legacy Makefile (optional)
+├── Makefile                # Makefile wrapper for CMake
+├── .env.example            # Example build-time configuration (copy to .env)
+├── config.ini              # Runtime configuration file
 ├── src/
 │   ├── bwfs.c             # Main FUSE daemon
 │   ├── mkfs_bwfs.c        # Filesystem formatter
 │   └── mount_bwfs.c       # Mount wrapper
+├── utils/
+│   └── meta.mk            # Makefile that loads .env configuration
 ├── external/
 │   └── libfuse/           # Local libfuse headers
 └── build/                  # Build directory (generated)

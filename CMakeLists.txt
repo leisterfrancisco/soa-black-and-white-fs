@@ -135,8 +135,17 @@ target_include_directories(mount.bwfs PRIVATE ${LIBFUSE_INCLUDE_DIR})
 
 # Main FUSE daemon (requires libfuse library)
 if(FUSE3_FOUND)
+    # Configure META_FILENAME path at compile time
+    # Default to project root directory, but allow override via CMake cache
+    if(NOT DEFINED BWFS_META_FILENAME)
+        set(BWFS_META_FILENAME "${CMAKE_SOURCE_DIR}/bwfs_metadata.bin" CACHE STRING "Path to bwfs_metadata.bin file")
+    endif()
+    
     add_executable(bwfs ${BWFS_SOURCES})
     target_include_directories(bwfs PRIVATE ${LIBFUSE_INCLUDE_DIR})
+    
+    # Define META_FILENAME as a compile-time constant
+    target_compile_definitions(bwfs PRIVATE META_FILENAME="${BWFS_META_FILENAME}")
     
     if(FUSE3_LIBRARIES)
         target_link_libraries(bwfs PRIVATE ${FUSE3_LIBRARIES})
@@ -146,6 +155,7 @@ if(FUSE3_FOUND)
     endif()
     
     message(STATUS "bwfs executable will be built")
+    message(STATUS "  META_FILENAME: ${BWFS_META_FILENAME}")
 else()
     # Library not found - provide helpful error but don't fail immediately
     # Allow mkfs.bwfs and mount.bwfs to be built

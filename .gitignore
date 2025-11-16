@@ -45,5 +45,8 @@ Thumbs.db
 
 .cache
 
-
 external
+
+
+# Sensitive data
+.env

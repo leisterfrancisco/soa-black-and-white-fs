@@ -2,6 +2,9 @@
 # This Makefile provides compatibility for users familiar with 'make'
 # All build logic is handled by CMakeLists.txt
 
+# Include configuration from .env file via meta.mk
+include utils/meta.mk
+
 .PHONY: all clean mnt storage help
 
 # Default target
@@ -9,7 +12,7 @@ all:
 	@echo "Using CMake build system..."
 	@if [ ! -d build ]; then \
 		echo "Configuring CMake..."; \
-		cmake -B build; \
+		cmake -B build -DBWFS_META_FILENAME="$$(pwd)/$(META_FILENAME)"; \
 	fi
 	@cmake --build build
 
@@ -18,6 +21,8 @@ bwfs mkfs.bwfs mount.bwfs: all
 	@echo "Built: $@"
 
 # Create directories
+# Note: These use hardcoded values matching config.ini defaults
+# Runtime mount_point and storage_path are configured in config.ini
 mnt:
 	@cmake --build build --target mnt 2>/dev/null || \
 	(mkdir -p mnt && chmod 777 mnt)
@@ -33,7 +38,7 @@ clean:
 
 clean-all:
 	@cmake --build build --target clean-all 2>/dev/null || \
-	(rm -rf build bwfs_storage mnt bwfs_metadata.bin)
+	(rm -rf build bwfs_storage mnt $(META_FILENAME))
 
 # Help
 help:
@@ -46,6 +51,10 @@ help:
 	@echo "  mnt          - Create mount point directory"
 	@echo "  storage      - Create storage directory"
 	@echo "  help         - Show this help message"
+	@echo ""
+	@echo "Configuration:"
+	@echo "  Variables are loaded from .env file via utils/meta.mk"
+	@echo "  Edit .env to customize: MAX_FILES, META_FILENAME, etc."
 	@echo ""
 	@echo "Note: This Makefile is a wrapper for CMake."
 	@echo "For more control, use CMake directly:"
