@@ -41,7 +41,7 @@ int client_connect( const char *hostname, uint16_t port ) {
   memset( &server_addr, 0, sizeof( server_addr ) );
   server_addr.sin_family = AF_INET;
   server_addr.sin_port = htons( port );
-  memcpy( &server_addr.sin_addr, host->h_addr, host->h_length );
+  memcpy( &server_addr.sin_addr, host->h_addr_list[0], host->h_length );
 
   if ( connect( sockfd,
                 (struct sockaddr *)&server_addr,

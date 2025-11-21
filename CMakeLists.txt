@@ -168,7 +168,13 @@ if(FUSE3_FOUND)
     
     # Define META_FILENAME as a compile-time constant
     target_compile_definitions(bwfs PRIVATE META_FILENAME="${BWFS_META_FILENAME}")
-    
+    # Define FUSE version macros (required by libfuse headers)
+    # FUSE_USE_VERSION 31 means version 3.1
+    target_compile_definitions(bwfs PRIVATE 
+        FUSE_MAJOR_VERSION=3
+        FUSE_MINOR_VERSION=1
+        FUSE_HOTFIX_VERSION=0
+    )
     if(FUSE3_LIBRARIES)
         target_link_libraries(bwfs PRIVATE ${FUSE3_LIBRARIES})
     endif()
