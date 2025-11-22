@@ -13,11 +13,9 @@
 typedef enum {
   MSG_TYPE_INVALID = 0,
   MSG_TYPE_ECHO = 1,
-  MSG_TYPE_GETATTR = 2,
-  MSG_TYPE_READDIR = 3,
-  MSG_TYPE_READ = 4,
-  MSG_TYPE_WRITE = 5,
-  MSG_TYPE_TEST = 6,
+  MSG_TYPE_READ = 2,
+  MSG_TYPE_WRITE = 3,
+  MSG_TYPE_TEST = 4,
   MSG_TYPE_RESPONSE = 128,
   MSG_TYPE_ERROR = 255
 } message_type_t;
@@ -46,5 +44,6 @@ int  protocol_create_message( message_t     *msg,
                               size_t         payload_len,
                               uint32_t       sequence );
 void protocol_print_message( const message_t *msg );
+void protocol_print_object( const message_t *msg );
 
 #endif // PROTOCOL_H
