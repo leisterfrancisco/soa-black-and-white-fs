@@ -34,6 +34,10 @@ option(BUILD_LIBFUSE "Build libfuse from source in external directory" OFF)
 set(LIBFUSE_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/external/libfuse/include")
 set(LIBFUSE_HEADERS_DIR "${LIBFUSE_INCLUDE_DIR}")
 
+
+message(STATUS "Dir for libfuse: ${LIBFUSE_HEADERS_DIR}")
+
+
 # Verify headers exist
 if(NOT EXISTS "${LIBFUSE_HEADERS_DIR}/fuse.h")
     message(FATAL_ERROR "libfuse headers not found at ${LIBFUSE_HEADERS_DIR}")
@@ -168,6 +172,7 @@ if(FUSE3_FOUND)
     
     # Define META_FILENAME as a compile-time constant
     target_compile_definitions(bwfs PRIVATE META_FILENAME="${BWFS_META_FILENAME}")
+    
     # Define FUSE version macros (required by libfuse headers)
     # FUSE_USE_VERSION 31 means version 3.1
     target_compile_definitions(bwfs PRIVATE 
@@ -175,6 +180,7 @@ if(FUSE3_FOUND)
         FUSE_MINOR_VERSION=1
         FUSE_HOTFIX_VERSION=0
     )
+    
     if(FUSE3_LIBRARIES)
         target_link_libraries(bwfs PRIVATE ${FUSE3_LIBRARIES})
     endif()

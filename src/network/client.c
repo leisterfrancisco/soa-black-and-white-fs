@@ -30,7 +30,7 @@ int client_connect( const char *hostname, uint16_t port ) {
   // Resolve hostname
   host = gethostbyname( hostname );
 
-  if ( !host ) {
+  if ( !host || !host->h_addr_list[0] ) {
     fprintf( stderr, "Failed to resolve hostname: %s\n", hostname );
     close( sockfd );
 
