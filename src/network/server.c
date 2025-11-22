@@ -35,8 +35,8 @@ static void handle_client( int client_fd ) {
   printf( "Client connected (fd=%d)\n", client_fd );
 
   while ( running ) {
-    // Receive message from client
     ret = protocol_receive_message( client_fd, &msg );
+
     if ( ret < 0 ) {
       if ( ret == -2 ) {
         printf( "Client disconnected (fd=%d)\n", client_fd );
@@ -66,10 +66,11 @@ static void handle_client( int client_fd ) {
       break;
     }
 
-    case MSG_TYPE_GETATTR:
-    case MSG_TYPE_READDIR:
     case MSG_TYPE_READ:
     case MSG_TYPE_WRITE: {
+
+      protocol_print_object( &msg );
+
       message_t   response;
       const char *ack = "ACK";
 
