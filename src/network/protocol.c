@@ -1,5 +1,4 @@
 #include <arpa/inet.h>
-#include <errno.h>
 #include <protocol.h>
 #include <stdbool.h>
 #include <stdio.h>
