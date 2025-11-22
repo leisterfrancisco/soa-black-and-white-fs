@@ -1,6 +1,7 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 // Network configuration
@@ -16,6 +17,7 @@ void server_close( int sockfd );
 // Client functions
 int  client_connect( const char *hostname, uint16_t port );
 void client_close( int sockfd );
+int  send_message( const void *payload, size_t size );
 
 // Utility functions
 const char *network_error_string( int err );

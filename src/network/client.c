@@ -1,14 +1,4 @@
-#include <arpa/inet.h>
-#include <errno.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <network.h>
-#include <protocol.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <unistd.h>
+#include <client.h>
 
 /**
  * Connect to a server
@@ -71,10 +61,7 @@ void client_close( int sockfd ) {
  */
 const char *network_error_string( int err ) { return strerror( err ); }
 
-/**
- * Simple test client
- */
-int main( int argc, char *argv[] ) {
+int send_message( const void *payload, size_t size ) {
   const char *hostname = "localhost";
   uint16_t    port = DEFAULT_PORT;
   int         sockfd;
@@ -82,19 +69,19 @@ int main( int argc, char *argv[] ) {
   uint32_t    sequence = 1;
 
   // Parse command line arguments
-  if ( argc > 1 ) {
-    hostname = argv[1];
-  }
+  // if ( argc > 1 ) {
+  //   hostname = argv[1];
+  // }
 
-  if ( argc > 2 ) {
-    port = (uint16_t)atoi( argv[2] );
-
-    if ( port == 0 ) {
-      fprintf( stderr, "Invalid port number: %s\n", argv[2] );
-
-      return 1;
-    }
-  }
+  // if ( argc > 2 ) {
+  //   port = (uint16_t)atoi( argv[2] );
+  //
+  //   if ( port == 0 ) {
+  //     fprintf( stderr, "Invalid port number: %s\n", argv[2] );
+  //
+  //     return 1;
+  //   }
+  // }
 
   // Connect to server
   sockfd = client_connect( hostname, port );
@@ -105,12 +92,10 @@ int main( int argc, char *argv[] ) {
     return 1;
   }
 
-  const char *test_message = "Hello, Server!";
-
   if ( protocol_create_message( &msg,
                                 MSG_TYPE_ECHO,
-                                test_message,
-                                strlen( test_message ),
+                                payload,
+                                size,
                                 sequence++ ) < 0 ) {
     fprintf( stderr, "Failed to create message\n" );
 
@@ -125,6 +110,7 @@ int main( int argc, char *argv[] ) {
   if ( protocol_send_message( sockfd, &msg ) < 0 ) {
     perror( "Failed to send message" );
     client_close( sockfd );
+
     return 1;
   }
 
@@ -132,6 +118,7 @@ int main( int argc, char *argv[] ) {
   if ( protocol_receive_message( sockfd, &response ) < 0 ) {
     perror( "Failed to receive response" );
     client_close( sockfd );
+
     return 1;
   }
 

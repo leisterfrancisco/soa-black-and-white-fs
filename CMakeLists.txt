@@ -135,6 +135,12 @@ set(CLIENT_SOURCES
     src/network/protocol.c
 )
 
+set(TEST_MESSAGE_SEND_SOURCES
+    src/network/test_message_send.c
+    src/network/client.c
+    src/network/protocol.c
+)
+
 # ============================================================================
 # Executables
 # ============================================================================
@@ -153,9 +159,9 @@ target_include_directories(bwfs-server PRIVATE
     ${CMAKE_SOURCE_DIR}/src
 )
 
-# Network client (Berkeley Sockets)
-add_executable(bwfs-client ${CLIENT_SOURCES})
-target_include_directories(bwfs-client PRIVATE 
+# Test message send executable (client test program)
+add_executable(test_message_send ${TEST_MESSAGE_SEND_SOURCES})
+target_include_directories(test_message_send PRIVATE 
     ${CMAKE_SOURCE_DIR}/src
 )
 
@@ -247,7 +253,7 @@ endif()
 # ============================================================================
 
 # Only install targets that were created
-set(INSTALL_TARGETS mkfs.bwfs mount.bwfs bwfs-server bwfs-client)
+set(INSTALL_TARGETS mkfs.bwfs mount.bwfs bwfs-server test_message_send)
 if(FUSE3_FOUND)
     list(APPEND INSTALL_TARGETS bwfs)
 endif()
