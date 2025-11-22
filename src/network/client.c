@@ -61,7 +61,7 @@ void client_close( int sockfd ) {
  */
 const char *network_error_string( int err ) { return strerror( err ); }
 
-int send_message( const void *payload, size_t size ) {
+int send_message( const void *payload, size_t size, message_type_t type ) {
   const char *hostname = "localhost";
   uint16_t    port = DEFAULT_PORT;
   int         sockfd;
@@ -92,11 +92,7 @@ int send_message( const void *payload, size_t size ) {
     return 1;
   }
 
-  if ( protocol_create_message( &msg,
-                                MSG_TYPE_ECHO,
-                                payload,
-                                size,
-                                sequence++ ) < 0 ) {
+  if ( protocol_create_message( &msg, type, payload, size, sequence++ ) < 0 ) {
     fprintf( stderr, "Failed to create message\n" );
 
     client_close( sockfd );

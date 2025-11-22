@@ -10,7 +10,6 @@
 #define MAX_MESSAGE_SIZE 4096
 #define MAX_PATH_LENGTH 256
 
-// Message types
 typedef enum {
   MSG_TYPE_INVALID = 0,
   MSG_TYPE_ECHO = 1,
@@ -18,6 +17,7 @@ typedef enum {
   MSG_TYPE_READDIR = 3,
   MSG_TYPE_READ = 4,
   MSG_TYPE_WRITE = 5,
+  MSG_TYPE_TEST = 6,
   MSG_TYPE_RESPONSE = 128,
   MSG_TYPE_ERROR = 255
 } message_type_t;

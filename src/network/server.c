@@ -49,10 +49,8 @@ static void handle_client( int client_fd ) {
     printf( "Received message:\n" );
     protocol_print_message( &msg );
 
-    // Handle different message types
     switch ( msg.header.type ) {
     case MSG_TYPE_ECHO: {
-      // Echo back the payload
       message_t response;
 
       protocol_create_message( &response,
@@ -72,19 +70,41 @@ static void handle_client( int client_fd ) {
     case MSG_TYPE_READDIR:
     case MSG_TYPE_READ:
     case MSG_TYPE_WRITE: {
-      // For now, send a simple acknowledgment
       message_t   response;
       const char *ack = "ACK";
+
       protocol_create_message( &response,
                                MSG_TYPE_RESPONSE,
                                ack,
                                strlen( ack ),
                                msg.header.sequence );
+
       if ( protocol_send_message( client_fd, &response ) < 0 ) {
         perror( "Error sending response" );
         goto cleanup;
       }
+
       printf( "Sent acknowledgment\n" );
+
+      break;
+    }
+    case MSG_TYPE_TEST: {
+      message_t   response;
+      const char *ack = "ACK";
+
+      protocol_create_message( &response,
+                               MSG_TYPE_RESPONSE,
+                               ack,
+                               strlen( ack ),
+                               msg.header.sequence );
+
+      if ( protocol_send_message( client_fd, &response ) < 0 ) {
+        perror( "Error sending response" );
+        goto cleanup;
+      }
+
+      printf( "Sent acknowledgment\n" );
+
       break;
     }
 
