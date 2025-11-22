@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <protocol.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -50,6 +51,7 @@ int protocol_receive_message( int sockfd, message_t *msg ) {
   // Receive header
   ssize_t received =
       recv( sockfd, &msg->header, sizeof( msg->header ), MSG_WAITALL );
+
   if ( received != sizeof( msg->header ) ) {
     if ( received == 0 ) {
       // Connection closed
@@ -100,14 +102,12 @@ int protocol_create_message( message_t     *msg,
     return -1;
   }
 
-  // Initialize header
   msg->header.magic = PROTOCOL_MAGIC;
   msg->header.version = PROTOCOL_VERSION;
   msg->header.type = (uint8_t)type;
   msg->header.length = (uint32_t)payload_len;
   msg->header.sequence = sequence;
 
-  // Copy payload if present
   if ( payload && payload_len > 0 ) {
     memcpy( msg->payload, payload, payload_len );
   }
@@ -129,15 +129,64 @@ void protocol_print_message( const message_t *msg ) {
   printf( "  Type: %u\n", msg->header.type );
   printf( "  Length: %u\n", msg->header.length );
   printf( "  Sequence: %u\n", msg->header.sequence );
+
   if ( msg->header.length > 0 ) {
     printf( "  Payload: " );
+
     size_t len = msg->header.length < 64 ? msg->header.length : 64;
+
     for ( size_t i = 0; i < len; i++ ) {
       printf( "%02X ", msg->payload[i] );
     }
+
     if ( msg->header.length > 64 ) {
       printf( "..." );
     }
+
+    printf( "\n" );
+  }
+}
+
+void protocol_print_object( const message_t *msg ) {
+  if ( !msg ) {
+    return;
+  }
+
+  printf( "Message:\n" );
+  printf( "  Magic: 0x%04X\n", msg->header.magic );
+  printf( "  Version: %u\n", msg->header.version );
+  printf( "  Type: %u\n", msg->header.type );
+  printf( "  Length: %u\n", msg->header.length );
+  printf( "  Sequence: %u\n", msg->header.sequence );
+
+  if ( msg->header.length > 0 ) {
+    printf( "  Payload: " );
+
+    typedef struct {
+      uint16_t model;
+      bool     available;
+      char     brand[32];
+    } car_model_t;
+
+    car_model_t car;
+
+    switch ( msg->header.type ) {
+    case MSG_TYPE_READ: {
+      memcpy( &car, msg->payload, sizeof( car_model_t ) );
+
+      printf( "Model: %d\n Available: %d\n Brand: %s\n",
+              car.model,
+              car.available,
+              car.brand );
+
+      break;
+    }
+    default: {
+      printf( "%s\n", "Invalid format to decode" );
+      break;
+    }
+    }
+
     printf( "\n" );
   }
 }
