@@ -1,5 +1,4 @@
 #include <arpa/inet.h>
-#include <errno.h>
 #include <netinet/in.h>
 #include <network.h>
 #include <protocol.h>
@@ -66,10 +65,12 @@ static void handle_client( int client_fd ) {
       break;
     }
 
-    case MSG_TYPE_READ:
-    case MSG_TYPE_WRITE: {
+    case MSG_TYPE_READ: {
+      printf( "%s\n", "Performing READ operation" );
 
       protocol_print_object( &msg );
+
+      // CONNECTION: look for for data and return it
 
       message_t   response;
       const char *ack = "ACK";
@@ -82,6 +83,33 @@ static void handle_client( int client_fd ) {
 
       if ( protocol_send_message( client_fd, &response ) < 0 ) {
         perror( "Error sending response" );
+
+        goto cleanup;
+      }
+
+      printf( "Sent acknowledgment\n" );
+
+      break;
+    }
+    case MSG_TYPE_WRITE: {
+      printf( "%s\n", "Performing WRITE operation" );
+
+      protocol_print_object( &msg );
+
+      // CONNECTION: write to memory
+
+      message_t   response;
+      const char *ack = "ACK";
+
+      protocol_create_message( &response,
+                               MSG_TYPE_RESPONSE,
+                               ack,
+                               strlen( ack ),
+                               msg.header.sequence );
+
+      if ( protocol_send_message( client_fd, &response ) < 0 ) {
+        perror( "Error sending response" );
+
         goto cleanup;
       }
 
