@@ -1,4 +1,6 @@
+#include "protocol.h"
 #include <client.h>
+#include <stdbool.h>
 #include <stdio.h>
 
 void send_basic_message() {
@@ -12,17 +14,19 @@ void send_custom_body_message() {
 
   typedef struct {
     uint16_t model;
+    bool     available;
     char     brand[32];
   } car_model_t;
 
   car_model_t car = {
       .model = 2025,
+      .available = true,
       .brand = "Ford",
   };
 
   size_t msg_size = sizeof( car );
 
-  send_message( &car, msg_size, MSG_TYPE_ECHO );
+  send_message( &car, msg_size, MSG_TYPE_READ );
 }
 
 void send_echo_message() { send_message( NULL, 0, MSG_TYPE_ECHO ); }
