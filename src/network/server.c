@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <bwfs.h>
 #include <netinet/in.h>
 #include <network.h>
 #include <protocol.h>
@@ -70,7 +71,12 @@ static void handle_client( int client_fd ) {
 
       protocol_print_object( &msg );
 
-      // CONNECTION: look for for data and return it
+      size_t path_length = msg.header.length;
+      char   path[path_length];
+
+      memcpy( &path, msg.payload, path_length );
+
+      read_local_file( path );
 
       message_t   response;
       const char *ack = "ACK";
@@ -95,8 +101,6 @@ static void handle_client( int client_fd ) {
       printf( "%s\n", "Performing WRITE operation" );
 
       protocol_print_object( &msg );
-
-      // CONNECTION: write to memory
 
       message_t   response;
       const char *ack = "ACK";

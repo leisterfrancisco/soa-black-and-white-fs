@@ -1,7 +1,7 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
-#include <protocol.h>
+#include "protocol.h"
 #include <stddef.h>
 #include <stdint.h>
 

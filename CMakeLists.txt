@@ -115,6 +115,8 @@ endif()
 
 set(BWFS_SOURCES
     src/bwfs.c
+    src/network/client.c
+    src/network/protocol.c
 )
 
 set(MKFS_BWFS_SOURCES
@@ -128,6 +130,8 @@ set(MOUNT_BWFS_SOURCES
 set(SERVER_SOURCES
     src/network/server.c
     src/network/protocol.c
+    src/network/client.c
+    src/bwfs.c
 )
 
 set(CLIENT_SOURCES
@@ -158,6 +162,8 @@ add_executable(bwfs-server ${SERVER_SOURCES})
 target_include_directories(bwfs-server PRIVATE 
     ${CMAKE_SOURCE_DIR}/src
 )
+# Exclude main function from bwfs.c when building server
+target_compile_definitions(bwfs-server PRIVATE EXCLUDE_BWFS_MAIN)
 
 # Test message send executable (client test program)
 add_executable(test_message_send ${TEST_MESSAGE_SEND_SOURCES})
@@ -174,7 +180,13 @@ if(FUSE3_FOUND)
     endif()
     
     add_executable(bwfs ${BWFS_SOURCES})
-    target_include_directories(bwfs PRIVATE ${LIBFUSE_INCLUDE_DIR})
+    # Include directories for bwfs executable
+    # - LIBFUSE_INCLUDE_DIR: for FUSE headers
+    # - CMAKE_SOURCE_DIR/src: for project headers (bwfs.h, network.h, protocol.h, etc.)
+    target_include_directories(bwfs PRIVATE
+        ${LIBFUSE_INCLUDE_DIR}
+        ${CMAKE_SOURCE_DIR}/src
+    )
     
     # Define META_FILENAME as a compile-time constant
     target_compile_definitions(bwfs PRIVATE META_FILENAME="${BWFS_META_FILENAME}")

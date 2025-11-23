@@ -24,72 +24,38 @@
  *  funciones
  */
 
-#define _GNU_SOURCE
-#define FUSE_USE_VERSION 31
-
-#include <errno.h>
-#include <fcntl.h>
-#include <fuse3/fuse.h> // NOTE: Rollback to previous version of this implmentation
-#include <limits.h>
-#include <stdint.h>
+#include <bwfs.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <time.h>
-#include <unistd.h>
-
-#ifndef PATH_MAX
-#define PATH_MAX 4096
-#endif
-
-/* Config / límites */
-#define MAX_FILES 1024
-#define MAX_NAME_LEN 255
-#ifndef META_FILENAME
-// Default fallback if not defined at compile time
-#define META_FILENAME "bwfs_metadata.bin"
-#endif
-#define BWFS_MAGIC 0x42574653u /* "BWFS" */
-#define DEFAULT_STORAGE "bwfs_storage"
-#define DEFAULT_MAX_BLOCK_BYTES 1000000UL /* 1000 x 1000 */
-
-/* --- estructuras en disco (persistentes) --- */
-typedef struct {
-  int    used;
-  char   name[256];
-  size_t size;
-  int    mode;
-} inode_disk_t;
-
-typedef struct {
-  unsigned int magic;
-  char         storage_path[512];
-  size_t       max_block_bytes;
-  inode_disk_t inodes[MAX_FILES];
-} bwfs_disk_t;
-
-/* --- estructuras en memoria (runtime) --- */
-typedef struct {
-  int    used;
-  char   name[MAX_NAME_LEN + 1];
-  mode_t mode;
-  uid_t  uid;
-  gid_t  gid;
-  size_t size;
-  time_t atime;
-  time_t mtime;
-  time_t ctime;
-} inode_t;
-
-typedef struct {
-  inode_t inodes[MAX_FILES];
-  char    storage_path[512];
-  size_t  max_block_bytes;
-} bwfs_t;
 
 static bwfs_t bwfs; /* estado global */
+
+// Remote is for files that needs to be fetched from a server
+void read_remote_file( const char *path ) {
+  const size_t size = strlen( path );
+
+  send_message( path, size, MSG_TYPE_READ );
+}
+
+// Remote is for files that needs to be written to a server
+void write_remote_file( const char *path ) {
+  const size_t size = strlen( path );
+
+  send_message( path, size, MSG_TYPE_WRITE );
+}
+
+// Called by a server for internal reference
+void read_local_file( const char *path ) {
+  printf( "READ FILE PATH: %s\n", path );
+
+  // code
+}
+
+// Called by a server for internal reference
+void write_local_file( const char *path ) {
+  printf( "WRITE FILE PATH: %s\n", path );
+
+  // code
+}
 
 /* ---- utilidades de path ---- */
 static void compact_slashes( const char *src, char *dst, size_t dstsz ) {
@@ -582,6 +548,7 @@ static struct fuse_operations bwfs_oper = {
 };
 
 /* ---- main: procesa -c config.ini opcional y arranca FUSE ---- */
+#ifndef EXCLUDE_BWFS_MAIN
 int main( int argc, char *argv[] ) {
   const char *config_file = NULL;
   for ( int i = 1; i < argc; ++i ) {
@@ -600,3 +567,4 @@ int main( int argc, char *argv[] ) {
       "********* EJECUTANDO BWFS (Opción 1 - archivo por inodo) *********\n" );
   return fuse_main( argc, argv, &bwfs_oper, NULL );
 }
+#endif // EXCLUDE_BWFS_MAIN
