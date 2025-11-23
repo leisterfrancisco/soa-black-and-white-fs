@@ -173,7 +173,7 @@ void protocol_print_object( const message_t *msg ) {
     case MSG_TYPE_READ: {
       memcpy( &car, msg->payload, sizeof( car_model_t ) );
 
-      printf( "Model: %d\n Available: %d\n Brand: %s\n",
+      printf( "\nModel: %d\nAvailable: %d\nBrand: %s\n",
               car.model,
               car.available,
               car.brand );
