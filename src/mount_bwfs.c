@@ -1,18 +1,19 @@
- /**
-  * En este programa se implementa el comando de mount.bwfs, se encarga de montar 
-  * el sistema de archivos BWFS siguiendo una clara sintaxis requerida
-  * 
-  *         `mount.bwfs -c config.ini mnt/`
-  * 
-  * Tiene como objetivo en validar los parámetros, convertir tanto el archivo de 
-  * configuración como el punto de montaje a rutas absolutas, de forma que se posiciona
-  * en el directorio donde se encuentre el FS y esto permite que el bwfs encuentre
-  * el bwfs_metadata.bin y bwfs_storage (era un error en versiones anteriores) y al final
-  * en realiza la ejecución del FS real con los argumentos adecuados. Con esto, se cumple
-  * con el requisito de permitir al usuario en especificar el archivo que define el incio
-  * del FS y montar el BWFS de forma correcta en un directorio del sistema operativo.
-  * 
-  */
+/**
+ * En este programa se implementa el comando de mount.bwfs, se encarga de montar 
+ * el sistema de archivos BWFS siguiendo una clara sintaxis requerida
+ * 
+ *         `mount.bwfs -c config.ini mnt/`
+ * 
+ * Tiene como objetivo en validar los parámetros, convertir tanto el archivo de 
+ * configuración como el punto de montaje a rutas absolutas, de forma que se posiciona
+ * en el directorio donde se encuentre el FS y esto permite que el bwfs encuentre
+ * el bwfs_metadata.bin y bwfs_storage (era un error en versiones anteriores) y al final
+ * en realiza la ejecución del FS real con los argumentos adecuados. Con esto, se cumple
+ * con el requisito de permitir al usuario en especificar el archivo que define el incio
+ * del FS y montar el BWFS de forma correcta en un directorio del sistema operativo.
+ * 
+ */
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
