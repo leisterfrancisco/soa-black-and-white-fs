@@ -13,7 +13,7 @@ void send_basic_message() {
 }
 
 void send_read_message() {
-  const char  *test_message = "mnt/some/path/to/file";
+  const char  *test_message = "/hola.py";
   const size_t msg_size = strlen( test_message );
 
   send_message( test_message, msg_size, MSG_TYPE_READ );
