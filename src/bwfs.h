@@ -96,10 +96,33 @@ typedef struct {
 
 void read_remote_file( const char *path );
 
-void write_remote_file( const char *path );
+/**
+ * Send a file write request to a remote server.
+ * 
+ * @param path The full path (e.g., "mnt/file2.txt")
+ * @param content The content to write
+ * @param content_size Size of the content in bytes
+ */
+void write_remote_file( const char *path, const void *content, size_t content_size );
 
-void read_local_file( const char *path );
+/**
+ * Read a local file and copy its content into the provided buffer using memcpy.
+ * 
+ * @param path The path to the file to read
+ * @param buffer Buffer to store the file content
+ * @param buffer_size Maximum size of the buffer
+ * @return Number of bytes read on success, -1 on error
+ */
+ssize_t read_local_file( const char *path, void *buffer, size_t buffer_size );
 
-void write_local_file( const char *path );
+/**
+ * Write content to a local file at the specified path.
+ * 
+ * @param path The full path to write to (e.g., "mnt/file2.txt")
+ * @param content The content to write
+ * @param content_size Size of the content in bytes
+ * @return Number of bytes written on success, -1 on error
+ */
+ssize_t write_local_file( const char *path, const void *content, size_t content_size );
 
 #endif // BWFS_H

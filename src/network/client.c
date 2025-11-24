@@ -124,9 +124,14 @@ int send_message( const void *payload, size_t size, message_type_t type ) {
   // Print response payload as string if it's a response
   if ( response.header.type == MSG_TYPE_RESPONSE &&
        response.header.length > 0 ) {
-    printf( "Response payload: %.*s\n",
-            (int)response.header.length,
-            (char *)response.payload );
+    printf( "\n--- Response Content (%u bytes) ---\n", response.header.length );
+    printf( "%.*s", (int)response.header.length, (char *)response.payload );
+    printf( "\n--- End of Response ---\n" );
+  } else if ( response.header.type == MSG_TYPE_ERROR &&
+              response.header.length > 0 ) {
+    printf( "\n--- Error Response ---\n" );
+    printf( "%.*s\n", (int)response.header.length, (char *)response.payload );
+    printf( "--- End of Error ---\n" );
   }
 
   client_close( sockfd );

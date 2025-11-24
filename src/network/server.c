@@ -72,28 +72,48 @@ static void handle_client( int client_fd ) {
       protocol_print_object( &msg );
 
       size_t path_length = msg.header.length;
-      char   path[path_length];
+      char   path[path_length + 1];
 
-      memcpy( &path, msg.payload, path_length );
+      memcpy( path, msg.payload, path_length );
+      path[path_length] = '\0'; // Null-terminate the string
 
-      read_local_file( path );
+      // Buffer to store file content
+      char    file_buffer[MAX_MESSAGE_SIZE];
+      ssize_t bytes_read =
+          read_local_file( path, file_buffer, sizeof( file_buffer ) );
 
-      message_t   response;
-      const char *ack = "ACK";
+      message_t response;
 
-      protocol_create_message( &response,
-                               MSG_TYPE_RESPONSE,
-                               ack,
-                               strlen( ack ),
-                               msg.header.sequence );
+      if ( bytes_read >= 0 ) {
+        // Send file content in response
+        protocol_create_message( &response,
+                                 MSG_TYPE_RESPONSE,
+                                 file_buffer,
+                                 (size_t)bytes_read,
+                                 msg.header.sequence );
 
-      if ( protocol_send_message( client_fd, &response ) < 0 ) {
-        perror( "Error sending response" );
+        if ( protocol_send_message( client_fd, &response ) < 0 ) {
+          perror( "Error sending response" );
+          goto cleanup;
+        }
 
-        goto cleanup;
+        printf( "Sent file content (%zd bytes)\n", bytes_read );
+      } else {
+        // Send error response
+        const char *error_msg = "Failed to read file";
+        protocol_create_message( &response,
+                                 MSG_TYPE_ERROR,
+                                 error_msg,
+                                 strlen( error_msg ),
+                                 msg.header.sequence );
+
+        if ( protocol_send_message( client_fd, &response ) < 0 ) {
+          perror( "Error sending error response" );
+          goto cleanup;
+        }
+
+        printf( "Sent error response\n" );
       }
-
-      printf( "Sent acknowledgment\n" );
 
       break;
     }
@@ -102,22 +122,91 @@ static void handle_client( int client_fd ) {
 
       protocol_print_object( &msg );
 
-      message_t   response;
-      const char *ack = "ACK";
+      // Parse WRITE message: path (null-terminated) followed by content
+      size_t payload_size = msg.header.length;
 
-      protocol_create_message( &response,
-                               MSG_TYPE_RESPONSE,
-                               ack,
-                               strlen( ack ),
-                               msg.header.sequence );
-
-      if ( protocol_send_message( client_fd, &response ) < 0 ) {
-        perror( "Error sending response" );
-
-        goto cleanup;
+      if ( payload_size == 0 ) {
+        const char *error_msg = "WRITE message missing path and content";
+        message_t   error_response;
+        protocol_create_message( &error_response,
+                                 MSG_TYPE_ERROR,
+                                 error_msg,
+                                 strlen( error_msg ),
+                                 msg.header.sequence );
+        protocol_send_message( client_fd, &error_response );
+        break;
       }
 
-      printf( "Sent acknowledgment\n" );
+      // Find null terminator to separate path from content
+      size_t path_length = 0;
+
+      while ( path_length < payload_size && msg.payload[path_length] != '\0' ) {
+        path_length++;
+      }
+
+      if ( path_length == 0 || path_length >= payload_size ) {
+        const char *error_msg = "WRITE message: invalid path format";
+        message_t   error_response;
+        protocol_create_message( &error_response,
+                                 MSG_TYPE_ERROR,
+                                 error_msg,
+                                 strlen( error_msg ),
+                                 msg.header.sequence );
+        protocol_send_message( client_fd, &error_response );
+        break;
+      }
+
+      // Extract path and content
+      char path[path_length + 1];
+      memcpy( path, msg.payload, path_length );
+      path[path_length] = '\0';
+
+      size_t content_size =
+          payload_size - path_length - 1; // -1 for null terminator
+      const void *content = msg.payload + path_length + 1;
+
+      printf( "Path: %s, Content size: %zu bytes\n", path, content_size );
+
+      // Write the file
+      ssize_t bytes_written = write_local_file( path, content, content_size );
+
+      message_t response;
+
+      if ( bytes_written >= 0 ) {
+        // Send success response
+        char ack_msg[64];
+        snprintf( ack_msg,
+                  sizeof( ack_msg ),
+                  "ACK: wrote %zd bytes",
+                  bytes_written );
+        protocol_create_message( &response,
+                                 MSG_TYPE_RESPONSE,
+                                 ack_msg,
+                                 strlen( ack_msg ),
+                                 msg.header.sequence );
+
+        if ( protocol_send_message( client_fd, &response ) < 0 ) {
+          perror( "Error sending response" );
+          goto cleanup;
+        }
+
+        printf( "Sent acknowledgment: wrote %zd bytes\n", bytes_written );
+      } else {
+        // Send error response
+        const char *error_msg = "Failed to write file";
+        protocol_create_message( &response,
+                                 MSG_TYPE_ERROR,
+                                 error_msg,
+                                 strlen( error_msg ),
+                                 msg.header.sequence );
+
+        if ( protocol_send_message( client_fd, &response ) < 0 ) {
+          perror( "Error sending error response" );
+          goto cleanup;
+        }
+
+        printf( "Sent error response\n" );
+      }
 
       break;
     }
