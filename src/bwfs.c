@@ -56,14 +56,14 @@ static int bwfs_write( const char            *path,
                        off_t                  offset,
                        struct fuse_file_info *fi );
 
-// Remote is for files that needs to be fetched from a server
+// Se llama cuando el archivo no existe en el master
 void read_remote_file( const char *path ) {
   const size_t size = strlen( path );
 
   send_message( path, size, MSG_TYPE_READ );
 }
 
-// Remote is for files that needs to be written to a server
+// Se llama cuando el archivo se escribe por en el master y se necesita replicar en el esclavo
 void write_remote_file( const char *path,
                         const void *content,
                         size_t      content_size ) {
@@ -84,7 +84,7 @@ void write_remote_file( const char *path,
   send_message( buffer, total_size, MSG_TYPE_WRITE );
 }
 
-// Called by a server for internal reference
+// Lo ejecuta el esclavo por una peticion del master
 ssize_t read_local_file( const char *path, void *buffer, size_t buffer_size ) {
   printf( "FILE PATH TO READ: %s\n", path );
 
@@ -125,7 +125,7 @@ ssize_t read_local_file( const char *path, void *buffer, size_t buffer_size ) {
   return total_read;
 }
 
-// Called by a server for internal reference
+// Lo ejecuta el esclavo por una peticion del master
 ssize_t
 write_local_file( const char *path, const void *content, size_t content_size ) {
   printf( "WRITE FILE PATH: %s\n", path );
