@@ -64,13 +64,16 @@ void read_remote_file( const char *path ) {
 }
 
 // Remote is for files that needs to be written to a server
-void write_remote_file( const char *path, const void *content, size_t content_size ) {
+void write_remote_file( const char *path,
+                        const void *content,
+                        size_t      content_size ) {
   if ( !path || !content || content_size == 0 ) {
     return;
   }
 
   size_t path_len = strlen( path );
-  size_t total_size = path_len + 1 + content_size; // path + null terminator + content
+  size_t total_size =
+      path_len + 1 + content_size; // path + null terminator + content
 
   // Create buffer: path (null-terminated) + content
   char buffer[total_size];
@@ -123,7 +126,8 @@ ssize_t read_local_file( const char *path, void *buffer, size_t buffer_size ) {
 }
 
 // Called by a server for internal reference
-ssize_t write_local_file( const char *path, const void *content, size_t content_size ) {
+ssize_t
+write_local_file( const char *path, const void *content, size_t content_size ) {
   printf( "WRITE FILE PATH: %s\n", path );
 
   if ( !path || !path[0] || !content || content_size == 0 ) {
@@ -143,18 +147,20 @@ ssize_t write_local_file( const char *path, const void *content, size_t content_
   ssize_t bytes_written;
 
   while ( total_written < (ssize_t)content_size ) {
-    bytes_written = write( fd, (const char *)content + total_written, content_size - total_written );
-    
+    bytes_written = write( fd,
+                           (const char *)content + total_written,
+                           content_size - total_written );
+
     if ( bytes_written < 0 ) {
       perror( "[bwfs] write_local_file: write failed" );
       close( fd );
       return -1;
     }
-    
+
     if ( bytes_written == 0 ) {
       break; // Shouldn't happen, but handle it
     }
-    
+
     total_written += bytes_written;
   }
 
