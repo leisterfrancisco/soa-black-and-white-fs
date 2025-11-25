@@ -1,4 +1,5 @@
 #include <client.h>
+#include <stdint.h>
 
 /**
  * Connect to a server
@@ -61,9 +62,13 @@ void client_close( int sockfd ) {
  */
 const char *network_error_string( int err ) { return strerror( err ); }
 
-int send_message( const void *payload, size_t size, message_type_t type ) {
-  const char *hostname = "localhost";
-  uint16_t    port = DEFAULT_PORT;
+int send_message( const void    *payload,
+                  size_t         size,
+                  message_type_t type,
+                  const char    *c_hostname,
+                  const uint16_t c_port ) {
+  const char *hostname = c_hostname != NULL ? c_hostname : "localhost";
+  uint16_t    port = c_port > 0 ? c_port : DEFAULT_PORT;
   int         sockfd;
   message_t   msg, response;
   uint32_t    sequence = 1;

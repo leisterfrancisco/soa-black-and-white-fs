@@ -60,7 +60,7 @@ static int bwfs_write( const char            *path,
 void read_remote_file( const char *path ) {
   const size_t size = strlen( path );
 
-  send_message( path, size, MSG_TYPE_READ );
+  send_message( path, size, MSG_TYPE_READ, "localhost", 8080 );
 }
 
 // Se llama cuando el archivo se escribe por en el master y se necesita replicar en el esclavo
@@ -81,7 +81,7 @@ void write_remote_file( const char *path,
   buffer[path_len] = '\0'; // Null terminator
   memcpy( buffer + path_len + 1, content, content_size );
 
-  send_message( buffer, total_size, MSG_TYPE_WRITE );
+  send_message( buffer, total_size, MSG_TYPE_WRITE, "localhost", 8080 );
 }
 
 // Lo ejecuta el esclavo por una peticion del master

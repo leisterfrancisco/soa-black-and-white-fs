@@ -12,4 +12,8 @@
 int         client_connect( const char *hostname, uint16_t port );
 void        client_close( int sockfd );
 const char *network_error_string( int err );
-int send_message( const void *payload, size_t size, message_type_t type );
+int         send_message( const void    *payload,
+                          size_t         size,
+                          message_type_t type,
+                          const char    *c_hostname,
+                          const uint16_t c_port );
