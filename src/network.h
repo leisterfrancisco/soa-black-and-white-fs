@@ -22,7 +22,8 @@ int  send_message( const void    *payload,
                    size_t         size,
                    message_type_t type,
                    const char    *c_hostname,
-                   const uint16_t c_port );
+                   const uint16_t c_port,
+                   char          *buff );
 
 // Utility functions
 const char *network_error_string( int err );

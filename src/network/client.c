@@ -66,7 +66,8 @@ int send_message( const void    *payload,
                   size_t         size,
                   message_type_t type,
                   const char    *c_hostname,
-                  const uint16_t c_port ) {
+                  const uint16_t c_port,
+                  char          *buff ) {
   const char *hostname = c_hostname != NULL ? c_hostname : "localhost";
   uint16_t    port = c_port > 0 ? c_port : DEFAULT_PORT;
   int         sockfd;
@@ -121,6 +122,10 @@ int send_message( const void    *payload,
     client_close( sockfd );
 
     return 1;
+  }
+
+  if ( type == MSG_TYPE_READ ) {
+    memcpy( buff, response.payload, response.header.length );
   }
 
   printf( "Received response:\n" );

@@ -57,10 +57,10 @@ static int bwfs_write( const char            *path,
                        struct fuse_file_info *fi );
 
 // Se llama cuando el archivo no existe en el master
-void read_remote_file( const char *path ) {
+void read_remote_file( const char *path, char *buffer ) {
   const size_t size = strlen( path );
 
-  send_message( path, size, MSG_TYPE_READ, "localhost", 8080 );
+  send_message( path, size, MSG_TYPE_READ, "localhost", 8081, buffer );
 }
 
 // Se llama cuando el archivo se escribe por en el master y se necesita replicar en el esclavo
@@ -81,7 +81,7 @@ void write_remote_file( const char *path,
   buffer[path_len] = '\0'; // Null terminator
   memcpy( buffer + path_len + 1, content, content_size );
 
-  send_message( buffer, total_size, MSG_TYPE_WRITE, "localhost", 8082 );
+  send_message( buffer, total_size, MSG_TYPE_WRITE, "localhost", 8082, NULL );
 }
 
 // Lo ejecuta el esclavo por una peticion del master
@@ -546,6 +546,20 @@ static int bwfs_read( const char            *path,
           path,
           size,
           (intmax_t)offset );
+
+  printf( "TESTING REMOTE READ" );
+
+  char dest[50] = "mnt";
+  char content[4096];
+  strncat( dest, path, sizeof( dest ) - strlen( dest ) - 1 );
+
+  read_remote_file( dest, content );
+
+  printf( "REMOTE FILE CONTENT: %s\n", content );
+
+  // [elias] leer local
+  // [elias] si no existe en local
+  // [leister] leer remoto
 
   int idx = find_inode_by_name( path );
   if ( idx < 0 )

@@ -94,7 +94,7 @@ typedef struct {
   size_t  max_block_bytes;
 } bwfs_t;
 
-void read_remote_file( const char *path );
+void read_remote_file( const char *path, char *buffer );
 
 /**
  * Send a file write request to a remote server.
@@ -103,7 +103,9 @@ void read_remote_file( const char *path );
  * @param content The content to write
  * @param content_size Size of the content in bytes
  */
-void write_remote_file( const char *path, const void *content, size_t content_size );
+void write_remote_file( const char *path,
+                        const void *content,
+                        size_t      content_size );
 
 /**
  * Read a local file and copy its content into the provided buffer using memcpy.
@@ -123,6 +125,7 @@ ssize_t read_local_file( const char *path, void *buffer, size_t buffer_size );
  * @param content_size Size of the content in bytes
  * @return Number of bytes written on success, -1 on error
  */
-ssize_t write_local_file( const char *path, const void *content, size_t content_size );
+ssize_t
+write_local_file( const char *path, const void *content, size_t content_size );
 
 #endif // BWFS_H
