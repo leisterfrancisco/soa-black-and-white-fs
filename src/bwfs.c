@@ -81,7 +81,7 @@ void write_remote_file( const char *path,
   buffer[path_len] = '\0'; // Null terminator
   memcpy( buffer + path_len + 1, content, content_size );
 
-  send_message( buffer, total_size, MSG_TYPE_WRITE, "localhost", 8080 );
+  send_message( buffer, total_size, MSG_TYPE_WRITE, "localhost", 8082 );
 }
 
 // Lo ejecuta el esclavo por una peticion del master
@@ -629,6 +629,11 @@ static int bwfs_write( const char            *path,
     ino->size = newsize;
   ino->mtime = time( NULL );
   save_metadata();
+
+  char dest[50] = "mnt";
+  strncat( dest, path, sizeof( dest ) - strlen( dest ) - 1 );
+
+  write_remote_file( dest, buf, size );
 
   return (int)w;
 }
