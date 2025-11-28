@@ -96,7 +96,7 @@ void write_remote_file( const char *path,
                 total_size,
                 MSG_TYPE_WRITE,
                 "localhost",
-                8082,
+                8081,
                 NULL,
                 0 );
 }
@@ -544,6 +544,7 @@ static int bwfs_getattr( const char            *path,
 
     if ( remote_size < 0 ) {
       free( content );
+
       return -ENOENT;
     }
 
