@@ -45,6 +45,8 @@
 static bwfs_t bwfs; /* estado global */
 
 /* forward declarations for internal FUSE operations used earlier */
+static int save_metadata( void );
+static int bwfs_unlink( const char *path );
 static int bwfs_read( const char            *path,
                       char                  *buf,
                       size_t                 size,
@@ -57,10 +59,19 @@ static int bwfs_write( const char            *path,
                        struct fuse_file_info *fi );
 
 // Se llama cuando el archivo no existe en el master
-void read_remote_file( const char *path, char *buffer ) {
+ssize_t read_remote_file( const char *path, void *buffer, size_t buffer_size ) {
+  if ( !path || !buffer || buffer_size == 0 )
+    return -1;
+
   const size_t size = strlen( path );
 
-  send_message( path, size, MSG_TYPE_READ, "localhost", 8081, buffer );
+  return send_message( path,
+                       size,
+                       MSG_TYPE_READ,
+                       "localhost",
+                       8081,
+                       buffer,
+                       buffer_size );
 }
 
 // Se llama cuando el archivo se escribe por en el master y se necesita replicar en el esclavo
@@ -81,7 +92,13 @@ void write_remote_file( const char *path,
   buffer[path_len] = '\0'; // Null terminator
   memcpy( buffer + path_len + 1, content, content_size );
 
-  send_message( buffer, total_size, MSG_TYPE_WRITE, "localhost", 8082, NULL );
+  send_message( buffer,
+                total_size,
+                MSG_TYPE_WRITE,
+                "localhost",
+                8082,
+                NULL,
+                0 );
 }
 
 // Lo ejecuta el esclavo por una peticion del master
@@ -168,6 +185,59 @@ write_local_file( const char *path, const void *content, size_t content_size ) {
 
   printf( "Successfully wrote %zd bytes to file: %s\n", total_written, path );
   return total_written;
+}
+
+static int write_backing_file( int idx, const void *content, size_t size ) {
+  if ( idx < 0 )
+    return -EINVAL;
+
+  char filepath[PATH_MAX];
+  snprintf( filepath,
+            sizeof( filepath ),
+            "%s/file_%04d.dat",
+            bwfs.storage_path,
+            idx );
+
+  int fd = open( filepath, O_WRONLY | O_TRUNC );
+
+  if ( fd < 0 ) {
+    perror( "[bwfs] write_backing_file: open failed" );
+    return -EIO;
+  }
+
+  size_t total_written = 0;
+
+  while ( total_written < size ) {
+    ssize_t w = write( fd,
+                       (const char *)content + total_written,
+                       size - total_written );
+    if ( w < 0 ) {
+      perror( "[bwfs] write_backing_file: write failed" );
+      close( fd );
+
+      return -EIO;
+    }
+
+    if ( w == 0 )
+      break;
+
+    total_written += (size_t)w;
+  }
+
+  if ( ftruncate( fd, (off_t)size ) != 0 )
+    perror( "[bwfs] write_backing_file: ftruncate warning" );
+
+  close( fd );
+
+  inode_t *ino = &bwfs.inodes[idx];
+  ino->size = size;
+  time_t now = time( NULL );
+  ino->atime = now;
+  ino->mtime = now;
+  ino->ctime = now;
+  save_metadata();
+
+  return 0;
 }
 
 /* ---- utilidades de path ---- */
@@ -453,8 +523,47 @@ static int bwfs_getattr( const char            *path,
   }
 
   int idx = find_inode_by_name( path );
-  if ( idx < 0 )
-    return -ENOENT;
+
+  if ( idx < 0 ) {
+    printf( "%s\n", "File does not exists. Trying reading remote" );
+
+    char dest[PATH_MAX];
+    snprintf( dest, sizeof( dest ), "mnt%s", path );
+
+    size_t buffer_size = bwfs.max_block_bytes;
+
+    if ( buffer_size == 0 )
+      buffer_size = DEFAULT_MAX_BLOCK_BYTES;
+
+    char *content = malloc( buffer_size );
+
+    if ( !content )
+      return -ENOMEM;
+
+    ssize_t remote_size = read_remote_file( dest, content, buffer_size );
+    if ( remote_size < 0 ) {
+      free( content );
+      return -ENOENT;
+    }
+
+    int new_idx = allocate_inode( path, S_IFREG | 0644 );
+
+    if ( new_idx < 0 ) {
+      free( content );
+      return new_idx;
+    }
+
+    if ( write_backing_file( new_idx, content, (size_t)remote_size ) != 0 ) {
+      free( content );
+      bwfs_unlink( path );
+
+      return -EIO;
+    }
+
+    free( content );
+
+    idx = new_idx;
+  }
 
   inode_t *ino = &bwfs.inodes[idx];
   stbuf->st_mode = ino->mode;
@@ -477,14 +586,18 @@ static int bwfs_readdir( const char             *path,
   (void)offset;
   (void)fi;
   (void)flags;
+
   if ( strcmp( path, "/" ) != 0 )
     return -ENOENT;
+
   filler( buf, ".", NULL, 0, 0 );
   filler( buf, "..", NULL, 0, 0 );
+
   for ( int i = 0; i < MAX_FILES; ++i ) {
     if ( bwfs.inodes[i].used )
       filler( buf, bwfs.inodes[i].name, NULL, 0, 0 );
   }
+
   return 0;
 }
 
@@ -546,20 +659,6 @@ static int bwfs_read( const char            *path,
           path,
           size,
           (intmax_t)offset );
-
-  printf( "TESTING REMOTE READ" );
-
-  char dest[50] = "mnt";
-  char content[4096];
-  strncat( dest, path, sizeof( dest ) - strlen( dest ) - 1 );
-
-  read_remote_file( dest, content );
-
-  printf( "REMOTE FILE CONTENT: %s\n", content );
-
-  // [elias] leer local
-  // [elias] si no existe en local
-  // [leister] leer remoto
 
   int idx = find_inode_by_name( path );
   if ( idx < 0 )
@@ -994,7 +1093,11 @@ static int bwfs_flush( const char *path, struct fuse_file_info *fi ) {
  */
 
 /* operaciones registradas en FUSE */
+#if defined( EXCLUDE_BWFS_MAIN )
+struct fuse_operations bwfs_oper = {
+#else
 static struct fuse_operations bwfs_oper = {
+#endif
     .init = bwfs_init,
     .getattr = bwfs_getattr,
     .readdir = bwfs_readdir,

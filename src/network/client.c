@@ -1,5 +1,6 @@
 #include <client.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 /**
  * Connect to a server
@@ -62,12 +63,13 @@ void client_close( int sockfd ) {
  */
 const char *network_error_string( int err ) { return strerror( err ); }
 
-int send_message( const void    *payload,
-                  size_t         size,
-                  message_type_t type,
-                  const char    *c_hostname,
-                  const uint16_t c_port,
-                  char          *buff ) {
+ssize_t send_message( const void    *payload,
+                      size_t         size,
+                      message_type_t type,
+                      const char    *c_hostname,
+                      const uint16_t c_port,
+                      char          *buff,
+                      size_t         buff_size ) {
   const char *hostname = c_hostname != NULL ? c_hostname : "localhost";
   uint16_t    port = c_port > 0 ? c_port : DEFAULT_PORT;
   int         sockfd;
@@ -95,7 +97,7 @@ int send_message( const void    *payload,
   if ( sockfd < 0 ) {
     fprintf( stderr, "Failed to connect to server\n" );
 
-    return 1;
+    return -1;
   }
 
   if ( protocol_create_message( &msg, type, payload, size, sequence++ ) < 0 ) {
@@ -103,7 +105,7 @@ int send_message( const void    *payload,
 
     client_close( sockfd );
 
-    return 1;
+    return -1;
   }
 
   printf( "Sending message:\n" );
@@ -113,7 +115,7 @@ int send_message( const void    *payload,
     perror( "Failed to send message" );
     client_close( sockfd );
 
-    return 1;
+    return -1;
   }
 
   // Receive response
@@ -121,11 +123,26 @@ int send_message( const void    *payload,
     perror( "Failed to receive response" );
     client_close( sockfd );
 
-    return 1;
+    return -1;
+    client_close( sockfd );
+
+    return -1;
   }
 
-  if ( type == MSG_TYPE_READ ) {
-    memcpy( buff, response.payload, response.header.length );
+  ssize_t copied = 0;
+
+  if ( buff && buff_size > 0 && response.header.length > 0 ) {
+    copied = (ssize_t)( ( response.header.length <= buff_size )
+                            ? response.header.length
+                            : buff_size );
+    memcpy( buff, response.payload, (size_t)copied );
+
+    if ( (size_t)copied < response.header.length ) {
+      fprintf( stderr,
+               "[send_message] response truncated (%zu > %zu)\n",
+               (size_t)response.header.length,
+               buff_size );
+    }
   }
 
   printf( "Received response:\n" );
@@ -146,5 +163,5 @@ int send_message( const void    *payload,
 
   client_close( sockfd );
 
-  return 0;
+  return copied;
 }

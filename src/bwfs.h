@@ -94,7 +94,7 @@ typedef struct {
   size_t  max_block_bytes;
 } bwfs_t;
 
-void read_remote_file( const char *path, char *buffer );
+ssize_t read_remote_file( const char *path, void *buffer, size_t buffer_size );
 
 /**
  * Send a file write request to a remote server.

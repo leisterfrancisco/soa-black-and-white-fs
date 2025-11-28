@@ -164,6 +164,12 @@ target_include_directories(bwfs-server PRIVATE
 )
 # Exclude main function from bwfs.c when building server
 target_compile_definitions(bwfs-server PRIVATE EXCLUDE_BWFS_MAIN)
+if(FUSE3_LIBRARIES)
+    target_link_libraries(bwfs-server PRIVATE ${FUSE3_LIBRARIES})
+endif()
+if(FUSE3_LDFLAGS_OTHER)
+    target_link_options(bwfs-server PRIVATE ${FUSE3_LDFLAGS_OTHER})
+endif()
 
 # Test message send executable (client test program)
 add_executable(test_message_send ${TEST_MESSAGE_SEND_SOURCES})

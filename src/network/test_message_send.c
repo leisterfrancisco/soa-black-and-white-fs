@@ -4,13 +4,15 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
 
 void send_echo_message() {
   printf( "\n=== Sending ECHO message ===\n" );
   char buff[4096];
-  int  result = send_message( NULL, 0, MSG_TYPE_ECHO, "localhost", 8080, buff );
+  ssize_t result =
+      send_message( NULL, 0, MSG_TYPE_ECHO, "localhost", 8080, buff, sizeof( buff ) );
 
-  if ( result == 0 ) {
+  if ( result >= 0 ) {
     printf( "\n✓ ECHO message sent successfully\n" );
   } else {
     printf( "\n✗ Failed to send ECHO message\n" );
@@ -23,14 +25,16 @@ void send_basic_message() {
 
   printf( "\n=== Sending basic ECHO message: %s ===\n", test_message );
   char buff[4096];
-  int  result = send_message( test_message,
-                             msg_size,
-                             MSG_TYPE_ECHO,
-                             "localhost",
-                             8080,
-                             buff );
+  ssize_t result =
+      send_message( test_message,
+                    msg_size,
+                    MSG_TYPE_ECHO,
+                    "localhost",
+                    8080,
+                    buff,
+                    sizeof( buff ) );
 
-  if ( result == 0 ) {
+  if ( result >= 0 ) {
     printf( "\n✓ Basic message sent successfully\n" );
   } else {
     printf( "\n✗ Failed to send basic message\n" );
@@ -44,10 +48,15 @@ void send_read_message( const char    *hostname,
 
   printf( "\n=== Sending READ message for: %s ===\n", file_path );
   char buff[4096];
-  int  result =
-      send_message( file_path, msg_size, MSG_TYPE_READ, hostname, port, buff );
+  ssize_t result = send_message( file_path,
+                                 msg_size,
+                                 MSG_TYPE_READ,
+                                 hostname,
+                                 port,
+                                 buff,
+                                 sizeof( buff ) );
 
-  if ( result == 0 ) {
+  if ( result >= 0 ) {
     printf( "\n✓ READ message sent successfully\n" );
   } else {
     printf( "\n✗ Failed to send READ message\n" );
@@ -77,10 +86,15 @@ void send_write_message( const char    *hostname,
   printf( "Content (%zu bytes): %s\n", content_len, content );
 
   char buff[4096];
-  int  result =
-      send_message( buffer, total_size, MSG_TYPE_WRITE, hostname, port, buff );
+  ssize_t result = send_message( buffer,
+                                 total_size,
+                                 MSG_TYPE_WRITE,
+                                 hostname,
+                                 port,
+                                 buff,
+                                 sizeof( buff ) );
 
-  if ( result == 0 ) {
+  if ( result >= 0 ) {
     printf( "\n✓ WRITE message sent successfully\n" );
   } else {
     printf( "\n✗ Failed to send WRITE message\n" );
