@@ -541,6 +541,7 @@ static int bwfs_getattr( const char            *path,
       return -ENOMEM;
 
     ssize_t remote_size = read_remote_file( dest, content, buffer_size );
+
     if ( remote_size < 0 ) {
       free( content );
       return -ENOENT;
