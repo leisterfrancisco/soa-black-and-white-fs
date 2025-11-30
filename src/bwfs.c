@@ -298,18 +298,20 @@ static int ensure_storage_dir_exists( void ) {
 
 /* ---------------- metadata load/save ---------------- */
 static int load_metadata( void ) {
-  bwfs_disk_t disk;
+  bwfs_disk_t disk; 
   char        meta_path[PATH_MAX];
 
+  // Obtiene la ruta absoluta del archivo (bwfs_metadata.bin)
   if ( !realpath( META_FILENAME, meta_path ) ) {
     /* puede no existir aún */
     return -1;
   }
 
+  // Se abre el archivo de metadata en modo de lectura binaria
   FILE *fp = fopen( meta_path, "rb" );
   if ( !fp )
     return -1;
-
+  // Ahora se lee todo el contenido del archivo de metadata en la estructura disk
   size_t r = fread( &disk, sizeof( disk ), 1, fp );
   fclose( fp );
   if ( r != 1 )
@@ -318,31 +320,37 @@ static int load_metadata( void ) {
   if ( disk.magic != BWFS_MAGIC )
     return -1;
 
-  /* copiar parámetros */
+  // Realiza la copia de los parámetros del disco a memoria
   strncpy( bwfs.storage_path,
            disk.storage_path,
            sizeof( bwfs.storage_path ) - 1 );
   bwfs.storage_path[sizeof( bwfs.storage_path ) - 1] = '\0';
   bwfs.max_block_bytes =
+  // Se copia el tamaño del bloque, si no está definido, usar valores por defecto
       disk.max_block_bytes ? disk.max_block_bytes : DEFAULT_MAX_BLOCK_BYTES;
   normalize_storage_path();
 
   /* inicializar inodos en memoria */
   for ( int i = 0; i < MAX_FILES; ++i ) {
+    // Marca el inodo como usado o libre según el metadata
     bwfs.inodes[i].used = disk.inodes[i].used;
     if ( disk.inodes[i].used ) {
+        // En caso que el inodo esta ocupado, pues copia el nombre, permisos y tamaño
       strncpy( bwfs.inodes[i].name, disk.inodes[i].name, MAX_NAME_LEN );
       bwfs.inodes[i].name[MAX_NAME_LEN] = '\0';
       bwfs.inodes[i].mode =
           disk.inodes[i].mode ? disk.inodes[i].mode : ( S_IFREG | 0644 );
       bwfs.inodes[i].size = disk.inodes[i].size;
     } else {
+    // Para el caso que esta libre, inicializa los valores por defecto
       bwfs.inodes[i].name[0] = '\0';
       bwfs.inodes[i].mode = 0;
       bwfs.inodes[i].size = 0;
     }
+    // Asignar UID/GID actual, el propietario del proceso
     bwfs.inodes[i].uid = getuid();
     bwfs.inodes[i].gid = getgid();
+    // Inicializa el time timestamps del acceso, modificación y creación al tiempo actual
     time_t now = time( NULL );
     bwfs.inodes[i].atime = now;
     bwfs.inodes[i].mtime = now;
@@ -352,41 +360,57 @@ static int load_metadata( void ) {
   return 0;
 }
 
+// Almacena la metadata de memoria en el bwfs_metadata.bin
 static int save_metadata( void ) {
   bwfs_disk_t disk;
+  // Inicializa la estructura temporal en disco a cero
+  // Asegura que cualquier padding o campo sin utilizar se guarde como 0
   memset( &disk, 0, sizeof( disk ) );
+  // Escribe en el magic number BWFS, para validar que el archivo es el correcto al leerlo
   disk.magic = BWFS_MAGIC;
+  // Copiar la ruta de almacenamiento desde la estructura en memoria global bwfs, a la estructura
+  // en disco. Limita la copia al tamaño máximo de storage path
   strncpy( disk.storage_path,
            bwfs.storage_path,
            sizeof( disk.storage_path ) - 1 );
+  // Almacena el tamaño máximo del bloque, utilizando el valor por defecto si es cero
   disk.max_block_bytes =
       bwfs.max_block_bytes ? bwfs.max_block_bytes : DEFAULT_MAX_BLOCK_BYTES;
+  // Ahora copia los inodos desde la memoria, a la estructura de disco
   for ( int i = 0; i < MAX_FILES; ++i ) {
     disk.inodes[i].used = bwfs.inodes[i].used;
     if ( bwfs.inodes[i].used ) {
+      // Si el inodo está activo, pues copia el nombre, tamaño y permisos
       strncpy( disk.inodes[i].name,
                bwfs.inodes[i].name,
                sizeof( disk.inodes[i].name ) - 1 );
       disk.inodes[i].size = bwfs.inodes[i].size;
       disk.inodes[i].mode = bwfs.inodes[i].mode;
     } else {
+      // Para cuando el inodo está libre, inicializamos los campos a 0 
       disk.inodes[i].name[0] = '\0';
       disk.inodes[i].size = 0;
       disk.inodes[i].mode = 0;
     }
   }
 
+  // Abre el archivo de metadata en modo binario escritura, truncando cualquier contenido previo
   FILE *fp = fopen( META_FILENAME, "wb" );
   if ( !fp ) {
+    // En caso que falle abrir el archivo, informar sobre el error
     fprintf( stderr, "[bwfs] save_metadata: fopen failed %s\n", META_FILENAME );
     return -1;
   }
+  // Escritura de la esctructura completa de disco en bwfs_metadata.bin
   size_t w = fwrite( &disk, sizeof( disk ), 1, fp );
   fclose( fp );
   return ( w == 1 ) ? 0 : -1;
 }
 
 /* ---- init hook ---- */
+// Esta funcion se ejecuta de forma automatica cuando se monta el FS usando FUSE
+// Como tal tiene el objetivo de inicializar el estado del FS en memoria, cargar metadata y
+// asegurar que el directorio de almacenamiento exista.
 static void *bwfs_init( struct fuse_conn_info *conn, struct fuse_config *cfg ) {
   (void)conn;
   cfg->kernel_cache = 1;
@@ -415,24 +439,32 @@ static void *bwfs_init( struct fuse_conn_info *conn, struct fuse_config *cfg ) {
 }
 
 /* ---- helpers de nombres e inodos ---- */
+// Se busca extraer el nombre base del path absoluta
 static const char *basename_from_path( const char *path ) {
   return ( path && path[0] == '/' ) ? path + 1 : path;
 }
-
+// Busca un inodo activo en memoria dado por un path
+// Hace un retorno del índica del inodo en bwfs.inodes[] o -1 en caso que no exista
 static int find_inode_by_name( const char *path ) {
-  const char *fname = basename_from_path( path );
-  if ( !fname || !fname[0] )
+  const char *fname = basename_from_path( path ); // Extrae solamente el nombre
+  if ( !fname || !fname[0] ) // path vacio o no valido
     return -1;
+  // Se recorre todos los inodos activos
   for ( int i = 0; i < MAX_FILES; ++i ) {
     if ( bwfs.inodes[i].used && strcmp( bwfs.inodes[i].name, fname ) == 0 )
-      return i;
+    // Retornamos el índice si coincide con el nombre  
+    return i;
   }
+  // En caso que no encuentra inodo
   return -1;
 }
 
 /* Reserva un inodo y crea el backing file. Retorna índice >=0 o -errno */
 static int allocate_inode( const char *path, mode_t mode ) {
+  // Obtiene solo el nombre de archivo desde la ruta completa
   const char *fname = basename_from_path( path );
+
+  // Validaciones iniciales
   if ( !fname || !fname[0] )
     return -EINVAL;
   if ( strlen( fname ) > MAX_NAME_LEN )
@@ -444,19 +476,20 @@ static int allocate_inode( const char *path, mode_t mode ) {
     return -EIO;
   if ( ensure_storage_dir_exists() != 0 )
     return -EIO;
-
+  // Busca de un nodo libre
   for ( int i = 0; i < MAX_FILES; ++i ) {
-    if ( !bwfs.inodes[i].used ) {
-      bwfs.inodes[i].used = 1;
-      strncpy( bwfs.inodes[i].name, fname, MAX_NAME_LEN );
-      bwfs.inodes[i].name[MAX_NAME_LEN] = '\0';
-      bwfs.inodes[i].mode = S_IFREG | ( mode & 0777 );
-      bwfs.inodes[i].uid = getuid();
-      bwfs.inodes[i].gid = getgid();
-      bwfs.inodes[i].size = 0;
-      time_t now = time( NULL );
-      bwfs.inodes[i].atime = bwfs.inodes[i].mtime = bwfs.inodes[i].ctime = now;
+    if ( !bwfs.inodes[i].used ) { // En caso que el nodo esté libre, se incializa
+      bwfs.inodes[i].used = 1;  // Marcarlo como ocupado
+      strncpy( bwfs.inodes[i].name, fname, MAX_NAME_LEN ); // Guarda el nombre
+      bwfs.inodes[i].name[MAX_NAME_LEN] = '\0'; // Asegura el null terminator
+      bwfs.inodes[i].mode = S_IFREG | ( mode & 0777 ); // Tipo de archivo regular y permisos POSIX
+      bwfs.inodes[i].uid = getuid(); // Propietario actual
+      bwfs.inodes[i].gid = getgid(); // Grupo actual
+      bwfs.inodes[i].size = 0; // Tamaño incial 0
+      time_t now = time( NULL ); // Obtener el timestampo actual
+      bwfs.inodes[i].atime = bwfs.inodes[i].mtime = bwfs.inodes[i].ctime = now; 
 
+      // Creacion de ruta del archivo fisico
       char filepath[PATH_MAX];
       int  rc = snprintf( filepath,
                          sizeof( filepath ),
@@ -464,15 +497,16 @@ static int allocate_inode( const char *path, mode_t mode ) {
                          bwfs.storage_path,
                          i );
       if ( rc < 0 || (size_t)rc >= sizeof( filepath ) ) {
+        // En caso que la ruta exceda el tamaño, deshace la asignación
         bwfs.inodes[i].used = 0;
         bwfs.inodes[i].name[0] = '\0';
         return -ENAMETOOLONG;
       }
-
-      int fd = open( filepath, O_CREAT | O_EXCL | O_WRONLY, 0644 );
+      // Creación de un archivo físico vacío
+      int fd = open( filepath, O_CREAT | O_EXCL | O_WRONLY, 0644 ); // Crear solo si no existe
       if ( fd < 0 ) {
         if ( errno == EEXIST ) {
-          /* si ya existe, truncamos para asegurar estado consistente */
+          // En caso que exista, se trunca para asegurar el estado consistente
           fd = open( filepath, O_TRUNC | O_WRONLY );
           if ( fd < 0 ) {
             perror( "[bwfs] allocate_inode open truncate" );
@@ -480,50 +514,63 @@ static int allocate_inode( const char *path, mode_t mode ) {
             bwfs.inodes[i].name[0] = '\0';
             return -EIO;
           }
-        } else {
+        } else { // Error diferente a la existencia
           perror( "[bwfs] allocate_inode open" );
           bwfs.inodes[i].used = 0;
           bwfs.inodes[i].name[0] = '\0';
           return -EIO;
         }
       }
+      // Cierra el descriptor de archivo
       close( fd );
 
+      // Almacena el metadata actualizada
       if ( save_metadata() != 0 ) {
-        /* rollback */
-        unlink( filepath );
-        bwfs.inodes[i].used = 0;
+        // En caso que falla, se deshace todo (rollback)
+        unlink( filepath ); //Borra el archivo físico
+        bwfs.inodes[i].used = 0; // Libera el inodo
         bwfs.inodes[i].name[0] = '\0';
         return -EIO;
       }
-
+      // Imprime información de debugging
       fprintf( stderr,
                "[bwfs] allocate_inode: allocated idx=%d name='%s' file='%s'\n",
                i,
                bwfs.inodes[i].name,
                filepath );
-      return i;
+      return i; //Hace un retorno al índice del inodo asignado
     }
   }
-  return -ENOSPC;
+  return -ENOSPC; // Return para cuando no se encuentran inodos libres
 }
 
 /* ---- FUSE operations ---- */
-
+/**
+ * 1. Función getattr: Esta función es una llamada de FUSE cada vez que se busca
+ * conocer por ejemplo la información de un archivo o directorio.
+ * 
+ */
 static int bwfs_getattr( const char            *path,
                          struct stat           *stbuf,
                          struct fuse_file_info *fi ) {
   (void)fi;
+  // Inicializamos con la estructura que se devolverá, esto evita que los valores que no se usen
+  // en campos que no estan escritos
   memset( stbuf, 0, sizeof( struct stat ) );
-
+  // Presentamos un caso especial, la raíz del FS '/' debe presentarse como un directorio.
+  // En este bloque devuelve el modo de directorio y número de los enlaces
   if ( strcmp( path, "/" ) == 0 ) {
     stbuf->st_mode = S_IFDIR | 0755;
-    stbuf->st_nlink = 2;
+    stbuf->st_nlink = 2;   // Ahora la convención '.' y '..' para 2 enlaces mínimos
     return 0;
   }
 
+  // Para cualquier otro path se espera un nombre simple '/nombre' sin subdirectorios
+  // luego find inode by name busca la tabla de inodos en memoria y devuelve el índice
+  // del nodo si existe, o -1 si no lo encuentra
   int idx = find_inode_by_name( path );
 
+  // En caso que no exista devuelve, no such file or directory
   if ( idx < 0 ) {
     printf( "%s\n", "File does not exists. Trying reading remote" );
 
@@ -566,18 +613,35 @@ static int bwfs_getattr( const char            *path,
 
     idx = new_idx;
   }
-
+  // En caso que exista, se obtiene un puntero al inodo en memoria para tomar los campos POSIX
   inode_t *ino = &bwfs.inodes[idx];
+  /**
+    * Realizamos un relleno de la estructura de stat con los campos:
+    * - st_mode = tipo y permisos, archivo regular, permisos que estan almacenados en inodo, mode
+    * - st_nlink = número de los enlaces, para archivos normales usamos 1 
+    * - st_size =  tamaño en bytes, importante para el read/ls
+    * - st_uid/ st_uid = propietario, permiten que el statu
+    * - st_atime/ st_mtime / s_ctime  = tiempos de acceso/modificación/cambio
+    * 
+  */
   stbuf->st_mode = ino->mode;
   stbuf->st_nlink = 1;
   stbuf->st_size = ino->size;
   stbuf->st_uid = ino->uid;
   stbuf->st_gid = ino->gid;
+  // Tiempos, conversión directa desde time_t almacenado en el inodo
   stbuf->st_atime = ino->atime;
   stbuf->st_mtime = ino->mtime;
   stbuf->st_ctime = ino->ctime;
   return 0;
 }
+
+/**
+ * 2. Función readdir, muestra la lista de archivos del directorio raíz par FUSE, entonces para esta funcion
+ * se ejecuta cuando el usuairo hace '/', asi que si se pide otro, se devuelve  -ENOENT
+ *  Por lo tanto, verifica que el path sea '/' luego agrega las entradas '.' y '..', por 
+ *  ultimo recorre la tabal de inodos y agrega los nombres de los archivos utilizados
+ */
 
 static int bwfs_readdir( const char             *path,
                          void                   *buf,
@@ -588,13 +652,13 @@ static int bwfs_readdir( const char             *path,
   (void)offset;
   (void)fi;
   (void)flags;
-
+  // Solo se permite listar el directorio raiz
   if ( strcmp( path, "/" ) != 0 )
     return -ENOENT;
-
+  // Se presentan las entradas basicas de cualquier directorio
   filler( buf, ".", NULL, 0, 0 );
   filler( buf, "..", NULL, 0, 0 );
-
+  // Ahora se agregan los archivos existentes segun los inodos
   for ( int i = 0; i < MAX_FILES; ++i ) {
     if ( bwfs.inodes[i].used )
       filler( buf, bwfs.inodes[i].name, NULL, 0, 0 );
@@ -603,37 +667,55 @@ static int bwfs_readdir( const char             *path,
   return 0;
 }
 
+/**
+ * 3. Función create, realiza el manejo de la creación de archivos en el FS, por ejemplo un 'touch'
+ *  En esta funcion es llamada por FUSE cuando el usuario intenta crear un archivo
+ * 
+ */
 static int
 bwfs_create( const char *path, mode_t mode, struct fuse_file_info *fi ) {
   (void)fi;
+  // Realiza el intento de reservar un inodo para este nuevo archivo
   int idx = allocate_inode( path, mode );
+  // Maneja un error si no hay espacio o path invalido
   if ( idx < 0 ) {
     fprintf( stderr,
              "[bwfs] create: allocate_inode failed %d for path='%s'\n",
              idx,
              path );
-    return idx;
+    return idx; // Propaga el error hacia FUSE
   }
   return 0;
 }
 
+/**
+ * 4. Funcion unlink, elimina un archivo del FS (rm)
+ * 
+ */
 static int bwfs_unlink( const char *path ) {
+  // Obtiene el nombre del archivo a partir de la ruta  
   const char *fname = basename_from_path( path );
   if ( !fname )
     return -ENOENT;
+  // Recorre todo los inodos buscando uno que coincida por nombre
   for ( int i = 0; i < MAX_FILES; ++i ) {
+    // Coincidencia, inodo usado y nombre igual
     if ( bwfs.inodes[i].used && strcmp( bwfs.inodes[i].name, fname ) == 0 ) {
       char filepath[PATH_MAX];
+      // Ruta especifica del archivo guardado en bwfs_storage
       snprintf( filepath,
                 sizeof( filepath ),
                 "%s/file_%04d.dat",
                 bwfs.storage_path,
                 i );
+      // Intenta borrar el archivo fisico, si falla no hay problema
       unlink( filepath ); /* ignore error */
+      // Limpieza de inodo
       bwfs.inodes[i].used = 0;
       bwfs.inodes[i].name[0] = '\0';
       bwfs.inodes[i].size = 0;
       bwfs.inodes[i].mode = 0;
+      // Guarda los cambios en la metadata del FS
       save_metadata();
       return 0;
     }
@@ -641,15 +723,27 @@ static int bwfs_unlink( const char *path ) {
   return -ENOENT;
 }
 
+/**
+ * 5. Funcion open, FUSE hace un llamado a esta funcion cuando un programa intenta abrir un 
+ * archivo(nano, etc). 
+ * 
+ */
 /* open: validar existencia (no hace mucho más, FUSE pedirá create antes si aplica) */
 static int bwfs_open( const char *path, struct fuse_file_info *fi ) {
   (void)fi;
+  // Realiza la busqueda del indice del inodo que corresponde al archivo dado
   int idx = find_inode_by_name( path );
+  // En caso que el archivo no exista en la tabla de inodos, devuelve un error
   if ( idx < 0 )
     return -ENOENT;
-  return 0;
+  return 0; // Si existe, toma el archivo valido y lo abre
 }
 
+/**
+ * 6. Funcion read, esta funcion se ejecuta cuando un programa intenta leer el contenido
+ * de un archivo (cat,head,tail)
+ * 
+ */
 /* read: signature correcta (ssize_t) */
 static int bwfs_read( const char            *path,
                       char                  *buf,
@@ -661,34 +755,35 @@ static int bwfs_read( const char            *path,
           path,
           size,
           (intmax_t)offset );
-
+  // Busca el inodo correspondiente al archivo solicitado
   int idx = find_inode_by_name( path );
   if ( idx < 0 )
     return -ENOENT;
-
+  // Para cuando el offset es mayor o igual al tamaño del archivo
   inode_t *ino = &bwfs.inodes[idx];
   if ( (size_t)offset >= ino->size )
     return 0; /* EOF */
-
+  // Si el cliente pide más bytes que los disponibles desde el offset, ajustamos el tamaño real
+  // que sí se puede leer
   if ( offset + size > ino->size )
     size = ino->size - offset;
-
+  // Construimos la ruta del archivo real "file_xxx.dat"
   char filepath[PATH_MAX];
   snprintf( filepath,
             sizeof( filepath ),
             "%s/file_%04d.dat",
             bwfs.storage_path,
             idx );
-
+  // Ahora abrimos el archivo fisico
   int fd = open( filepath, O_RDONLY );
   if ( fd < 0 )
     return -EIO;
-
+  // Posiciona el cursor en el offset solicitado
   if ( lseek( fd, offset, SEEK_SET ) == (off_t)-1 ) {
     close( fd );
     return -EIO;
   }
-
+  // Lee desde el archivo real hacia el buffer FUSE
   ssize_t r = read( fd, buf, size );
   close( fd );
   if ( r < 0 )
@@ -699,7 +794,10 @@ static int bwfs_read( const char            *path,
   save_metadata();
   return (int)r;
 }
-
+/**
+ * 7. Funcion write, ejecuta cuando un programa quiere escribir datos en un archivo
+ * (echo, nano, etc)
+ */
 /* write: signature correcta (ssize_t) */
 static int bwfs_write( const char            *path,
                        const char            *buf,
@@ -710,39 +808,39 @@ static int bwfs_write( const char            *path,
   int idx = find_inode_by_name( path );
   if ( idx < 0 )
     return -ENOENT;
-
+  // Busca el inodo correspondiente al archivo
   inode_t *ino = &bwfs.inodes[idx];
 
   /* validar límite por bloque */
   uint64_t endpos = (uint64_t)offset + (uint64_t)size;
-  if ( endpos > bwfs.max_block_bytes )
+  if ( endpos > bwfs.max_block_bytes ) // Archivo seria demasiado grande
     return -EFBIG;
-
+  // Contruye la ruta del archivo real
   char filepath[PATH_MAX];
   snprintf( filepath,
             sizeof( filepath ),
             "%s/file_%04d.dat",
             bwfs.storage_path,
             idx );
-
+  // Abre el archivo fisico en modo de lectura/escritura
   int fd = open( filepath, O_RDWR );
   if ( fd < 0 )
     return -EIO;
-
+  // Ahora posiciona el cursor en el offset solicitado
   if ( lseek( fd, offset, SEEK_SET ) == (off_t)-1 ) {
     close( fd );
     return -EIO;
   }
-
+  // Escribe desde el buffer al archivo real
   ssize_t w = write( fd, buf, size );
   close( fd );
   if ( w < 0 )
-    return -EIO;
-
+    return -EIO; // Falla fisica de escritura
+  // Realiza una actualizacion del nuevo tamaño en caso que crezca
   size_t newsize = (size_t)offset + (size_t)w;
   if ( newsize > ino->size )
     ino->size = newsize;
-  ino->mtime = time( NULL );
+  ino->mtime = time( NULL ); // Realiza una actualizacion del nodo
   save_metadata();
 
   char dest[50] = "mnt";
@@ -753,16 +851,25 @@ static int bwfs_write( const char            *path,
   return (int)w;
 }
 
+ /** 
+ * 8. Funcion utimens(extra),  porque ayuda para actualizar los tiempos de acceso (atime)
+ * modificacion (mtime) de un archivo
+ */
 /* utimens: actualizar tiempos */
 static int bwfs_utimens( const char            *path,
                          const struct timespec  tv[2],
                          struct fuse_file_info *fi ) {
   (void)fi;
+  // Obtenemos solo el nombre del archivo desde la ruta completa
   const char *fname = basename_from_path( path );
   if ( !fname )
     return -ENOENT;
+  // Ahora se recorre toda la tabla de inodos buscando el archivo
   for ( int i = 0; i < MAX_FILES; ++i ) {
+    
     if ( bwfs.inodes[i].used && strcmp( bwfs.inodes[i].name, fname ) == 0 ) {
+      // Entonces el tv[0] representa el tiempo de ultimo acceso atime
+      // y el tv[1] es el tiempo de la ultima modificacion mtime 
       bwfs.inodes[i].atime = tv[0].tv_sec;
       bwfs.inodes[i].mtime = tv[1].tv_sec;
       save_metadata();
@@ -772,6 +879,14 @@ static int bwfs_utimens( const char            *path,
   return -ENOENT;
 }
 
+/**
+ * 9. Funcion rename, esta funcion cambia el nombre de una archivo dentro del FS  (mv mnt/prueba1.txt mnt/nuevo_nombre.txt)
+ *  entonces este FS no renombra el archivo fisico del file_xxxx.dat sino que modifica el nombre
+ *  logico almacenado en la metadata es decir inodos, esto para evitar conflictos y eficiencia en estructura que no modifique
+ *  los datos dentro de los archivos sino que su inodo como tal 
+)
+ * 
+ */
 static int bwfs_rename( const char *from, const char *to, unsigned int flags ) {
   (void)flags; // fuse3 pasa flags, usualmente ignorables
                // Realiza una busqueda del archivo original a renombrar
@@ -817,6 +932,15 @@ static int bwfs_rename( const char *from, const char *to, unsigned int flags ) {
   fprintf( stderr, "[bwfs] rename: '%s' -> '%s'\n", from, newname );
   return 0;
 }
+
+/**
+ * 10. Funcion access, en esta función se implementa la lógica de accesos tipo POSIX, entonces
+ * FUSE la llama cuando un proceso requiere de: comprobar si un archivo existe, verificar permisos de lectura
+ * verificar permisos de escritura, verificar permisos de ejecucion. La validacion de permisos segun 
+ * el dueño del archivo (uid), grupo(gid), permisos 'other' y root siempre pasa.
+ * 
+ */
+
 
 static int bwfs_access( const char *path, int mask ) {
   // Si se piden acceso al directorio raiz '/' devuelve éxito
@@ -891,6 +1015,12 @@ static int bwfs_access( const char *path, int mask ) {
   return 0;
 }
 
+/**
+ * 11. Función chmod (extra), funcion cambio de permisos de un archivo o directorio dentro del FS
+ * entonces esta funcion es llamada cuando un usuario ejecuta el chmod sobre un archivo. La implementamos
+ * para un mayor manejo en el file system (ej, chmod 777 mnt/file full accesos, chmod 444 mnt/file solo r-r-r)
+ */
+
 static int
 bwfs_chmod( const char *path, mode_t mode, struct fuse_file_info *fi ) {
   (void)fi;
@@ -916,6 +1046,13 @@ bwfs_chmod( const char *path, mode_t mode, struct fuse_file_info *fi ) {
   save_metadata(); //Guarda los cambios en el archivo de metadata del FS
   return 0;
 }
+
+ /**
+  * 
+  * 12. Funcion statfs, es la encargada de reportar el estado del FS, cuando el usuario ejecuta los comandos
+  *  df -h mnt/, df -T mnt/, stat -f mnt/
+  * 
+  */
 
 static int bwfs_statfs( const char *path, struct statvfs *st ) {
   (void)path;
@@ -965,6 +1102,10 @@ static int bwfs_statfs( const char *path, struct statvfs *st ) {
   return 0;
 }
 
+/**
+ * 13. Funcion mkdir, se implementa la operación de mkdir para crear un directorio dentro de FS
+ * 
+ */
 static int bwfs_mkdir( const char *path, mode_t mode ) {
   // Se extrae unicamente el nombre final del path
   const char *name = basename_from_path( path );
@@ -1016,6 +1157,23 @@ static int bwfs_mkdir( const char *path, mode_t mode ) {
   return -ENOSPC;
 }
 
+/**
+ * 14. Funcion fsync, en esta funcion es llamada por FUSE cuando un proceso solicita forzar que todos los
+ * datos pendientes en un archivo sean escritos de forma segura. Simplemente se abren los file_xxxx.dat asociado
+ * al inodo y ejecutamos fsync(fd) por lo que se busca garantizar que todos los datos escritos por la funcion write
+ * ya se encuentren persistidos
+ * 
+ * Ejemplos para prueba:
+ *      - echo "HELLO" | dd of=mnt/fs_test1.bin bs=1 conv=fsync
+ *           Genera una cadena de letras y un salto de linea, el dd escribe esos bytes en el archivo
+ *           y el conv=fsync inidica que despues de escribir el archivo, ejecuta el fsync()
+ *      - echo -n "A" | dd of=mnt/fs_test2.bin oflag=sync
+ *          Escribe un solo byte de A, entonces cada write se comporta como un write + fsync
+ *      - strace -e fsync dd if=/dev/zero of=mnt/fs_test3.bin bs=1 count=1 conv=fsync
+ *          Muestra solamente las llamadas fsync realizadas por el comando, entonces escribe 1 byte y ejecuta el fsync
+ * 
+ */
+
 static int
 bwfs_fsync( const char *path, int datasync, struct fuse_file_info *fi ) {
   (void)fi;
@@ -1047,6 +1205,12 @@ bwfs_fsync( const char *path, int datasync, struct fuse_file_info *fi ) {
   return 0;
 }
 
+/**
+ * 15. Funcion flush, se ejecuta cuando un proceso cierra un archivo, pero otra instancia podria continuar abierta
+ * , no realiza la liberacion de recursos. Busca por ejemplo que los cambios en el archivo fisico file_xxxx.dat esten 
+ * sincronizados con el almacenamiento
+ * 
+ */
 static int bwfs_flush( const char *path, struct fuse_file_info *fi ) {
   (void)fi;
 
@@ -1100,22 +1264,22 @@ struct fuse_operations bwfs_oper = {
 #else
 static struct fuse_operations bwfs_oper = {
 #endif
-    .init = bwfs_init,
-    .getattr = bwfs_getattr,
-    .readdir = bwfs_readdir,
-    .create = bwfs_create,
-    .open = bwfs_open,
-    .read = bwfs_read,
-    .write = bwfs_write,
-    .unlink = bwfs_unlink,
-    .utimens = bwfs_utimens,
-    .rename = bwfs_rename,
-    .access = bwfs_access,
-    .chmod = bwfs_chmod,
-    .statfs = bwfs_statfs,
-    .mkdir = bwfs_mkdir,
-    .fsync = bwfs_fsync,
-    .flush = bwfs_flush,
+    .init       = bwfs_init,
+    .getattr    = bwfs_getattr,
+    .readdir    = bwfs_readdir,
+    .create     = bwfs_create,
+    .open       = bwfs_open,
+    .read       = bwfs_read,
+    .write      = bwfs_write,
+    .unlink     = bwfs_unlink,
+    .utimens    = bwfs_utimens,
+    .rename     = bwfs_rename,
+    .access     = bwfs_access,
+    .chmod      = bwfs_chmod,
+    .statfs     = bwfs_statfs,
+    .mkdir      = bwfs_mkdir,
+    .fsync      = bwfs_fsync,
+    .flush      = bwfs_flush,
 };
 
 /* ---- main: procesa -c config.ini opcional y arranca FUSE ---- */
