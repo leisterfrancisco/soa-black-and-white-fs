@@ -489,12 +489,14 @@ static int has_extension( const char *path ) {
 
 static int find_inode_by_name( const char *path ) {
   const char *fname = basename_from_path( path );
+
   if ( !fname || !fname[0] )
     return -1;
   for ( int i = 0; i < MAX_FILES; ++i ) {
     if ( bwfs.inodes[i].used && strcmp( bwfs.inodes[i].name, fname ) == 0 )
       return i;
   }
+
   return -1;
 }
 
