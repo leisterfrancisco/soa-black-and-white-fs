@@ -5,10 +5,22 @@
 #include <sys/stat.h>
 #include <errno.h>
 
-#define META_FILE "bwfs_metadata.bin" // Archivo principal de metadata del sistema BWFS
-#define MAX_FILES 1024 // Número máximo de bloques/archivos permitidos
-#define STORAGE_DIR "bwfs_storage" // Directorio donde se almacenan los .dat
-#define IMG_DIR "storage_images"  // Carpeta donde se exportarán las imágenes PBM
+// Configuration values provided by CMake from .env file
+#ifndef META_FILE
+#define META_FILE "bwfs_metadata.bin"
+#endif
+
+#ifndef MAX_FILES
+#define MAX_FILES 1024
+#endif
+
+#ifndef STORAGE_DIR
+#define STORAGE_DIR "bwfs_storage"
+#endif
+
+#ifndef IMG_DIR
+#define IMG_DIR "storage_images"
+#endif
 
 // Carga un archivo completo en memoria
 // path: ruta del archivo a leer
@@ -82,6 +94,9 @@ static void ensure_dir(const char *dir)
 int main()
 {
     printf("[bwfs_export] Exportando imágenes a '%s/'…\n", IMG_DIR);
+    printf("[bwfs_export] Metadata: %s\n", META_FILE);
+    printf("[bwfs_export] Storage: %s/\n", STORAGE_DIR);
+    printf("[bwfs_export] Max files: %d\n", MAX_FILES);
 
     ensure_dir(IMG_DIR); // Crea el directorio de salida si no existe
 

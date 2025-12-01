@@ -24,6 +24,59 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -O0")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -DNDEBUG")
 
 # ============================================================================
+# Load .env Configuration
+# ============================================================================
+
+# Default values (used if .env doesn't exist or variable is not set)
+set(ENV_META_FILE "bwfs_metadata.bin")
+set(ENV_MAX_FILES "1024")
+set(ENV_STORAGE_DIR "bwfs_storage")
+set(ENV_IMG_DIR "storage_images")
+
+# Try to read .env file
+set(ENV_FILE "${CMAKE_SOURCE_DIR}/.env")
+if(EXISTS "${ENV_FILE}")
+    message(STATUS "Loading .env file from: ${ENV_FILE}")
+    file(STRINGS "${ENV_FILE}" ENV_LINES)
+    foreach(LINE ${ENV_LINES})
+        # Skip comments and empty lines
+        if(NOT LINE MATCHES "^[ \t]*#" AND NOT LINE MATCHES "^[ \t]*$")
+            # Parse META_FILENAME or META_FILE
+            if(LINE MATCHES "^[ \t]*META_FILENAME[ \t]*=[ \t]*(.+)$")
+                string(REGEX REPLACE "^[ \t]*META_FILENAME[ \t]*=[ \t]*(.+)$" "\\1" ENV_META_FILE "${LINE}")
+                string(STRIP "${ENV_META_FILE}" ENV_META_FILE)
+            elseif(LINE MATCHES "^[ \t]*META_FILE[ \t]*=[ \t]*(.+)$")
+                string(REGEX REPLACE "^[ \t]*META_FILE[ \t]*=[ \t]*(.+)$" "\\1" ENV_META_FILE "${LINE}")
+                string(STRIP "${ENV_META_FILE}" ENV_META_FILE)
+            endif()
+            # Parse MAX_FILES
+            if(LINE MATCHES "^[ \t]*MAX_FILES[ \t]*=[ \t]*([0-9]+)$")
+                string(REGEX REPLACE "^[ \t]*MAX_FILES[ \t]*=[ \t]*([0-9]+)$" "\\1" ENV_MAX_FILES "${LINE}")
+                string(STRIP "${ENV_MAX_FILES}" ENV_MAX_FILES)
+            endif()
+            # Parse STORAGE_DIR
+            if(LINE MATCHES "^[ \t]*STORAGE_DIR[ \t]*=[ \t]*(.+)$")
+                string(REGEX REPLACE "^[ \t]*STORAGE_DIR[ \t]*=[ \t]*(.+)$" "\\1" ENV_STORAGE_DIR "${LINE}")
+                string(STRIP "${ENV_STORAGE_DIR}" ENV_STORAGE_DIR)
+            endif()
+            # Parse IMG_DIR
+            if(LINE MATCHES "^[ \t]*IMG_DIR[ \t]*=[ \t]*(.+)$")
+                string(REGEX REPLACE "^[ \t]*IMG_DIR[ \t]*=[ \t]*(.+)$" "\\1" ENV_IMG_DIR "${LINE}")
+                string(STRIP "${ENV_IMG_DIR}" ENV_IMG_DIR)
+            endif()
+        endif()
+    endforeach()
+else()
+    message(STATUS ".env file not found, using defaults")
+endif()
+
+message(STATUS "BWFS Export Images Configuration:")
+message(STATUS "  META_FILE: ${ENV_META_FILE}")
+message(STATUS "  MAX_FILES: ${ENV_MAX_FILES}")
+message(STATUS "  STORAGE_DIR: ${ENV_STORAGE_DIR}")
+message(STATUS "  IMG_DIR: ${ENV_IMG_DIR}")
+
+# ============================================================================
 # libfuse Configuration
 # ============================================================================
 
@@ -145,6 +198,10 @@ set(TEST_MESSAGE_SEND_SOURCES
     src/network/protocol.c
 )
 
+set(BWFS_EXPORT_IMAGES_SOURCES
+    src/bwfs_export_images.c
+)
+
 # ============================================================================
 # Executables
 # ============================================================================
@@ -175,6 +232,19 @@ endif()
 add_executable(test_message_send ${TEST_MESSAGE_SEND_SOURCES})
 target_include_directories(test_message_send PRIVATE 
     ${CMAKE_SOURCE_DIR}/src
+)
+
+# bwfs_export_images - export storage blocks as PBM images
+add_executable(bwfs_export_images ${BWFS_EXPORT_IMAGES_SOURCES})
+target_include_directories(bwfs_export_images PRIVATE 
+    ${CMAKE_SOURCE_DIR}/src
+)
+# Pass configuration values from .env as compile-time definitions
+target_compile_definitions(bwfs_export_images PRIVATE
+    META_FILE="${ENV_META_FILE}"
+    MAX_FILES=${ENV_MAX_FILES}
+    STORAGE_DIR="${ENV_STORAGE_DIR}"
+    IMG_DIR="${ENV_IMG_DIR}"
 )
 
 # Main FUSE daemon (requires libfuse library)
@@ -271,7 +341,7 @@ endif()
 # ============================================================================
 
 # Only install targets that were created
-set(INSTALL_TARGETS mkfs.bwfs mount.bwfs bwfs-server test_message_send)
+set(INSTALL_TARGETS mkfs.bwfs mount.bwfs bwfs-server test_message_send bwfs_export_images)
 if(FUSE3_FOUND)
     list(APPEND INSTALL_TARGETS bwfs)
 endif()
